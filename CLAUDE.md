@@ -60,7 +60,7 @@ API keys live only in `backend/.env` — never in frontend code.
 | Node Role | Default Model |
 |---|---|
 | AI Planner | openai/gpt-4o |
-| Research Node | google/gemini-flash-2.5 |
+| Research Node | google/gemini-2.5-flash |
 | Writer Node | anthropic/claude-haiku-4-5 |
 | Critic Node | openai/gpt-4o-mini |
 | Complex Node | anthropic/claude-sonnet-4-6 |

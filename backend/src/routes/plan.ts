@@ -15,7 +15,7 @@ Return ONLY a JSON object — no explanation, no markdown, just raw JSON — wit
       "type": "research",
       "label": "Short Agent Name",
       "systemPrompt": "Detailed instruction for this agent's specific role",
-      "model": "google/gemini-flash-2.5"
+      "model": "google/gemini-2.5-flash"
     }
   ],
   "edges": [
@@ -24,7 +24,7 @@ Return ONLY a JSON object — no explanation, no markdown, just raw JSON — wit
 }
 
 Available node types and their default models:
-- "research" → use model: google/gemini-flash-2.5  (gathers and summarizes information)
+- "research" → use model: google/gemini-2.5-flash  (gathers and summarizes information)
 - "writer"   → use model: anthropic/claude-haiku-4-5 (creates written content)
 - "critic"   → use model: openai/gpt-4o-mini        (reviews and critiques output)
 - "custom"   → use model: openai/gpt-4o-mini        (general purpose agent)

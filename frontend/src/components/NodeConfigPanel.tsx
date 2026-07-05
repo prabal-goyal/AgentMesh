@@ -5,7 +5,7 @@ const AVAILABLE_MODELS = [
   'openai/gpt-4o-mini',
   'anthropic/claude-sonnet-4-6',
   'anthropic/claude-haiku-4-5',
-  'google/gemini-flash-2.5',
+  'google/gemini-2.5-flash',
 ]
 
 export function NodeConfigPanel() {

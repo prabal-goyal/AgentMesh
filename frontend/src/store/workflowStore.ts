@@ -11,7 +11,7 @@ import type { WorkflowNode, WorkflowEdge, WorkflowNodeData, NodeType } from '../
 
 // Default model per node type — matches our OpenRouter model strategy
 const NODE_MODEL_DEFAULTS: Record<NodeType, string> = {
-  research: 'google/gemini-flash-2.5',
+  research: 'google/gemini-2.5-flash',
   writer:   'anthropic/claude-haiku-4-5',
   critic:   'openai/gpt-4o-mini',
   custom:   'openai/gpt-4o-mini',
