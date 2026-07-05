@@ -73,8 +73,8 @@ API keys live only in `backend/.env` — never in frontend code.
 - ✅ **Phase 3** — AI Planner — OpenRouter integration, POST /api/plan, PlannerInput UI
 - ✅ **Phase 4** — Execution Engine — topological sort (Kahn's), sequential node runner, context chaining
 - ✅ **Phase 5** — Real-time Streaming — SSE endpoint, fetch ReadableStream, per-token canvas updates
-- 🔲 **Phase 6** — Inspection + Editing (retry, inline edit) ← **NEXT**
-- 🔲 **Phase 7** — Tavily web search integration for Research nodes (RAG pattern)
+- ✅ **Phase 6** — Inspection + Editing — retry single node, copy output, auto-scroll, reset button
+- ✅ **Phase 7** — Tavily web search — tool use loop, streaming tool call detection, Research nodes only
 
 ## Session Resume Instructions
 

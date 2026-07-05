@@ -7,6 +7,7 @@ import executeRouter from './routes/execute.js'
 // Fail fast — catch missing keys before any request is made
 if (!process.env.OPENAI_API_KEY)     console.warn('⚠️  OPENAI_API_KEY is not set')
 if (!process.env.OPENROUTER_API_KEY) console.warn('⚠️  OPENROUTER_API_KEY is not set')
+if (!process.env.TAVILY_API_KEY)     console.warn('⚠️  TAVILY_API_KEY is not set — web search disabled')
 
 const app = express()
 const PORT = process.env.PORT || 3001

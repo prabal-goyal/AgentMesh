@@ -9,9 +9,10 @@ export function PlannerInput() {
   const [error, setError]     = useState<string | null>(null)
 
   // goal lives in the store so RunButton can read it without prop drilling
-  const goal        = useWorkflowStore((state) => state.goal)
-  const setGoal     = useWorkflowStore((state) => state.setGoal)
-  const setWorkflow = useWorkflowStore((state) => state.setWorkflow)
+  const goal           = useWorkflowStore((state) => state.goal)
+  const setGoal        = useWorkflowStore((state) => state.setGoal)
+  const setWorkflow    = useWorkflowStore((state) => state.setWorkflow)
+  const resetExecution = useWorkflowStore((state) => state.resetExecution)
 
   async function handleGenerate() {
     if (!goal.trim()) return
@@ -74,6 +75,14 @@ export function PlannerInput() {
       </div>
 
       <RunButton />
+
+      <button
+        onClick={resetExecution}
+        className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors whitespace-nowrap"
+        title="Clear all outputs and reset nodes to idle"
+      >
+        Reset
+      </button>
 
       {error && (
         <p className="text-xs text-red-500 whitespace-nowrap">{error}</p>

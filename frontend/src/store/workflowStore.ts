@@ -7,7 +7,7 @@ import {
   type EdgeChange,
   type Connection,
 } from '@xyflow/react'
-import type { WorkflowNode, WorkflowEdge, WorkflowNodeData, NodeType } from '../types/workflow'
+import type { WorkflowNode, WorkflowEdge, WorkflowNodeData, NodeType, NodeStatus } from '../types/workflow'
 
 // Default model per node type — matches our OpenRouter model strategy
 const NODE_MODEL_DEFAULTS: Record<NodeType, string> = {

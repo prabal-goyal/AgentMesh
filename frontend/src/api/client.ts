@@ -55,7 +55,7 @@ export type StreamEvent =
 // Uses fetch + ReadableStream instead of EventSource because we POST a body.
 export async function streamExecuteWorkflow(
   payload: {
-    nodes: Array<{ id: string; label: string; model: string; systemPrompt: string }>
+    nodes: Array<{ id: string; label: string; model: string; systemPrompt: string; nodeType?: string }>
     edges: Array<{ source: string; target: string }>
     goal: string
   },

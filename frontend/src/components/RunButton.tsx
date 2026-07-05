@@ -26,6 +26,7 @@ export function RunButton() {
             label:        n.data.label,
             model:        n.data.model,
             systemPrompt: n.data.systemPrompt,
+            nodeType:     n.data.nodeType,
           })),
           edges: edges.map((e) => ({ source: e.source, target: e.target })),
           goal,
