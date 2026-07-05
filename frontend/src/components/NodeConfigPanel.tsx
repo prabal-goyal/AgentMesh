@@ -9,7 +9,7 @@ const AVAILABLE_MODELS = [
 ]
 
 export function NodeConfigPanel() {
-  const { nodes, selectedNodeId, updateNodeData } = useWorkflowStore()
+  const { nodes, selectedNodeId, updateNodeData, deleteNode } = useWorkflowStore()
   const node = nodes.find((n) => n.id === selectedNodeId)
 
   if (!node) return null
@@ -18,13 +18,21 @@ export function NodeConfigPanel() {
 
   return (
     <aside className="w-72 border-l bg-white flex flex-col shrink-0 overflow-y-auto">
-      <div className="p-4 border-b">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-          Node Config
-        </p>
-        <p className="text-sm font-medium text-gray-700 mt-1 capitalize">
-          {data.nodeType} node
-        </p>
+      <div className="p-4 border-b flex items-start justify-between">
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            Node Config
+          </p>
+          <p className="text-sm font-medium text-gray-700 mt-1 capitalize">
+            {data.nodeType} node
+          </p>
+        </div>
+        <button
+          onClick={() => deleteNode(node.id)}
+          className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+        >
+          Delete
+        </button>
       </div>
 
       <div className="p-4 flex flex-col gap-4">

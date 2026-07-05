@@ -47,6 +47,7 @@ interface WorkflowState {
   // Our own actions
   addNode: (type: NodeType) => void
   updateNodeData: (id: string, data: Partial<WorkflowNodeData>) => void
+  deleteNode: (id: string) => void
   selectNode: (id: string | null) => void
 }
 
@@ -117,6 +118,16 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       nodes: get().nodes.map((n) =>
         n.id === id ? { ...n, data: { ...n.data, ...data } } : n
       ),
+    }),
+
+  deleteNode: (id) =>
+    set({
+      // Remove the node itself
+      nodes: get().nodes.filter((n) => n.id !== id),
+      // Remove any edges that were connected to this node
+      edges: get().edges.filter((e) => e.source !== id && e.target !== id),
+      // Clear selection if the deleted node was selected
+      selectedNodeId: get().selectedNodeId === id ? null : get().selectedNodeId,
     }),
 
   selectNode: (id) => set({ selectedNodeId: id }),
