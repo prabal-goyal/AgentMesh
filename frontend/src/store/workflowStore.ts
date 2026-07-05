@@ -49,6 +49,7 @@ interface WorkflowState {
   updateNodeData: (id: string, data: Partial<WorkflowNodeData>) => void
   deleteNode: (id: string) => void
   selectNode: (id: string | null) => void
+  setWorkflow: (nodes: WorkflowNode[], edges: WorkflowEdge[]) => void
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
@@ -131,4 +132,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }),
 
   selectNode: (id) => set({ selectedNodeId: id }),
+
+  // Replaces the entire canvas with a new set of nodes and edges (used by AI Planner)
+  setWorkflow: (nodes, edges) => set({ nodes, edges, selectedNodeId: null }),
 }))
