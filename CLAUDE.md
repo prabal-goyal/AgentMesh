@@ -63,9 +63,13 @@ API keys live only in `backend/.env` — never in frontend code.
 
 ## Development Phases
 
-- **Phase 1** — Project scaffold (done)
-- **Phase 2** — Canvas UI (React Flow, node types, edges)
-- **Phase 3** — AI Planner (NL → workflow graph)
-- **Phase 4** — Execution Engine (topological sort, node runner)
-- **Phase 5** — Real-time Streaming (SSE)
-- **Phase 6** — Inspection + Editing (retry, inline edit)
+- ✅ **Phase 1** — Project scaffold — pnpm workspaces, Vite + React 19, Express 5, git init, CLAUDE.md
+- 🔲 **Phase 2** — Canvas UI (React Flow, node types, edges) ← **NEXT**
+- 🔲 **Phase 3** — AI Planner (NL → workflow graph)
+- 🔲 **Phase 4** — Execution Engine (topological sort, node runner)
+- 🔲 **Phase 5** — Real-time Streaming (SSE)
+- 🔲 **Phase 6** — Inspection + Editing (retry, inline edit)
+
+## Session Resume Instructions
+
+When resuming: greet the user, confirm which phase is next (shown above), briefly recap what was built last, and ask if they're ready to continue or have questions first. Do NOT restart from scratch or re-explain Phase 1.
