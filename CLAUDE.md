@@ -40,6 +40,11 @@ This is a **learning project**. The goal is to understand concepts and architect
 | openai (OpenRouter) | 6.45.0 |
 | tsx | 4.23.0 |
 
+## Repository
+
+GitHub: https://github.com/prabal-goyal/AgentMesh
+Remote: git@github.com:prabal-goyal/AgentMesh.git
+
 ## Architecture
 
 ```
