@@ -71,11 +71,11 @@ API keys live only in `backend/.env` — never in frontend code.
 - ✅ **Phase 1** — Project scaffold — pnpm workspaces, Vite + React 19, Express 5, git init, CLAUDE.md
 - ✅ **Phase 2** — Canvas UI — React Flow canvas, 4 custom node types, Zustand store, config panel
 - ✅ **Phase 3** — AI Planner — OpenRouter integration, POST /api/plan, PlannerInput UI
-- 🔲 **Phase 4** — Execution Engine (topological sort, node runner) ← **NEXT**
-- 🔲 **Phase 3** — AI Planner (NL → workflow graph)
-- 🔲 **Phase 4** — Execution Engine (topological sort, node runner)
+- ✅ **Phase 4** — Execution Engine — topological sort (Kahn's), sequential node runner, context chaining
+- 🔲 **Phase 5** — Real-time Streaming (SSE) ← **NEXT**
 - 🔲 **Phase 5** — Real-time Streaming (SSE)
 - 🔲 **Phase 6** — Inspection + Editing (retry, inline edit)
+- 🔲 **Phase 7** — Tavily web search integration for Research nodes (RAG pattern)
 
 ## Session Resume Instructions
 

@@ -36,6 +36,8 @@ interface WorkflowState {
   nodes: WorkflowNode[]
   edges: WorkflowEdge[]
   selectedNodeId: string | null
+  goal: string
+  executing: boolean
 
   // React Flow calls these when the user drags, deletes, or resizes nodes/edges
   onNodesChange: (changes: NodeChange<WorkflowNode>[]) => void
@@ -50,6 +52,10 @@ interface WorkflowState {
   deleteNode: (id: string) => void
   selectNode: (id: string | null) => void
   setWorkflow: (nodes: WorkflowNode[], edges: WorkflowEdge[]) => void
+  setGoal: (goal: string) => void
+  setExecuting: (executing: boolean) => void
+  setNodeStatus: (id: string, status: NodeStatus) => void
+  setNodeOutput: (id: string, output: string) => void
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
@@ -82,6 +88,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   ],
   edges: [],
   selectedNodeId: null,
+  goal: '',
+  executing: false,
 
   // React Flow gives us a list of changes (move, remove, select)
   // applyNodeChanges applies them to our array and returns the updated array
@@ -135,4 +143,23 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   // Replaces the entire canvas with a new set of nodes and edges (used by AI Planner)
   setWorkflow: (nodes, edges) => set({ nodes, edges, selectedNodeId: null }),
+
+  setGoal: (goal) => set({ goal }),
+  setExecuting: (executing) => set({ executing }),
+
+  // Update a single node's status without touching anything else
+  setNodeStatus: (id, status) =>
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === id ? { ...n, data: { ...n.data, status } } : n
+      ),
+    }),
+
+  // Update a single node's output without touching anything else
+  setNodeOutput: (id, output) =>
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === id ? { ...n, data: { ...n.data, output } } : n
+      ),
+    }),
 }))

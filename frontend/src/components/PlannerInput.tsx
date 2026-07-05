@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { generatePlan } from '../api/client'
 import { useWorkflowStore } from '../store/workflowStore'
+import { RunButton } from './RunButton'
 import type { WorkflowNode, WorkflowEdge, NodeType } from '../types/workflow'
 
 export function PlannerInput() {
-  const [goal, setGoal]       = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
-  const setWorkflow           = useWorkflowStore((state) => state.setWorkflow)
+
+  // goal lives in the store so RunButton can read it without prop drilling
+  const goal        = useWorkflowStore((state) => state.goal)
+  const setGoal     = useWorkflowStore((state) => state.setGoal)
+  const setWorkflow = useWorkflowStore((state) => state.setWorkflow)
 
   async function handleGenerate() {
     if (!goal.trim()) return
@@ -18,8 +22,6 @@ export function PlannerInput() {
     try {
       const plan = await generatePlan(goal)
 
-      // The AI returns nodes without positions — we assign them here.
-      // Simple horizontal layout: each node is 280px to the right of the previous one.
       const nodes: WorkflowNode[] = plan.nodes.map((n, i) => ({
         id: n.id,
         type: n.type,
@@ -33,7 +35,6 @@ export function PlannerInput() {
         },
       }))
 
-      // Edges from the AI already have source/target — just add a unique id
       const edges: WorkflowEdge[] = plan.edges.map((e, i) => ({
         id:     `e-${i}`,
         source: e.source,
@@ -44,7 +45,6 @@ export function PlannerInput() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
-      // finally always runs — clears loading whether it succeeded or failed
       setLoading(false)
     }
   }
@@ -72,6 +72,8 @@ export function PlannerInput() {
           {loading ? 'Generating…' : 'Generate Workflow'}
         </button>
       </div>
+
+      <RunButton />
 
       {error && (
         <p className="text-xs text-red-500 whitespace-nowrap">{error}</p>

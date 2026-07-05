@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import 'dotenv/config'
 import planRouter from './routes/plan.js'
+import executeRouter from './routes/execute.js'
 
 // Fail fast — catch missing keys before any request is made
 if (!process.env.OPENAI_API_KEY)     console.warn('⚠️  OPENAI_API_KEY is not set')
@@ -26,8 +27,8 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
-// All requests to /api/plan are handled by planRouter
 app.use('/api/plan', planRouter)
+app.use('/api/execute', executeRouter)
 
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`)
