@@ -1,0 +1,8 @@
+{
+  "name": "ai-workflow-builder",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter frontend --filter backend dev"
+  },
+  "packageManager": "pnpm@11.10.0"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "openai": "^6.45.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "tsx": "^4.23.0",
+    "@types/express": "^5.0.6",
+    "@types/cors": "^2.8.19",
+    "@types/node": "^26.1.0"
+  }
+}
