@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { openrouter } from '../lib/openrouter.js'
+import { resolveModel } from '../lib/openrouter.js'
 
 const router = Router()
 
@@ -45,9 +45,11 @@ router.post('/', async (req, res) => {
     return
   }
 
-  // Call OpenRouter with json_object mode — forces valid JSON output
-  const response = await openrouter.chat.completions.create({
-    model: 'openai/gpt-4o',
+  // Planner uses gpt-4o — resolveModel routes it to the OpenAI API directly
+  const { client, model } = resolveModel('openai/gpt-4o')
+
+  const response = await client.chat.completions.create({
+    model,
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: PLANNER_SYSTEM_PROMPT },
