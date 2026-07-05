@@ -1,7 +1,5 @@
 const API_BASE = 'http://localhost:3001'
 
-// Sends the user's goal to the backend and returns the generated workflow plan.
-// Throws an error if the server responds with a non-2xx status.
 export async function generatePlan(goal: string): Promise<{
   nodes: Array<{
     id: string
@@ -26,8 +24,6 @@ export async function generatePlan(goal: string): Promise<{
   return res.json()
 }
 
-// Sends the workflow to the backend for sequential execution.
-// Returns a map of nodeId → output text for every node.
 export async function executeWorkflow(payload: {
   nodes: Array<{ id: string; label: string; model: string; systemPrompt: string }>
   edges: Array<{ source: string; target: string }>
@@ -45,4 +41,57 @@ export async function executeWorkflow(payload: {
   }
 
   return res.json()
+}
+
+// Mirror of the backend StreamEvent type
+export type StreamEvent =
+  | { type: 'node_start'; nodeId: string; label: string }
+  | { type: 'node_token'; nodeId: string; token: string }
+  | { type: 'node_done';  nodeId: string; output: string }
+  | { type: 'done' }
+  | { type: 'error'; message: string }
+
+// Opens a streaming connection and calls onEvent for every SSE event.
+// Uses fetch + ReadableStream instead of EventSource because we POST a body.
+export async function streamExecuteWorkflow(
+  payload: {
+    nodes: Array<{ id: string; label: string; model: string; systemPrompt: string }>
+    edges: Array<{ source: string; target: string }>
+    goal: string
+  },
+  onEvent: (event: StreamEvent) => void
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/execute/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`)
+
+  const reader  = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer    = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    // { stream: true } handles multi-byte characters split across chunks
+    buffer += decoder.decode(value, { stream: true })
+
+    // SSE events are separated by \n\n — keep incomplete last part in buffer
+    const parts = buffer.split('\n\n')
+    buffer = parts.pop() ?? ''
+
+    for (const part of parts) {
+      const dataLine = part.split('\n').find((l) => l.startsWith('data: '))
+      if (!dataLine) continue
+      try {
+        onEvent(JSON.parse(dataLine.slice(6)) as StreamEvent)
+      } catch {
+        // skip malformed events
+      }
+    }
+  }
 }

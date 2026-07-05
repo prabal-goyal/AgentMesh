@@ -58,6 +58,84 @@ function getParentIds(nodeId: string, edges: EdgeInput[]): string[] {
   return edges.filter((e) => e.target === nodeId).map((e) => e.source)
 }
 
+// Every event the streaming executor can emit — one type per thing that happens
+export type StreamEvent =
+  | { type: 'node_start'; nodeId: string; label: string }
+  | { type: 'node_token'; nodeId: string; token: string }
+  | { type: 'node_done';  nodeId: string; output: string }
+  | { type: 'done' }
+  | { type: 'error'; message: string }
+
+// Builds the user message for a node — shared between sync and streaming versions
+function buildUserMessage(
+  node: NodeInput,
+  nodes: NodeInput[],
+  edges: EdgeInput[],
+  outputs: Record<string, string>,
+  goal: string
+): string {
+  const parentIds = getParentIds(node.id, edges)
+
+  if (parentIds.length === 0) {
+    return `The workflow goal is: ${goal}\n\nComplete your task based on your role.`
+  }
+
+  const context = parentIds
+    .map((id) => {
+      const parentLabel = nodes.find((n) => n.id === id)?.label ?? id
+      return `[${parentLabel}]:\n${outputs[id]}`
+    })
+    .join('\n\n---\n\n')
+
+  return `Here is the output from the previous step:\n\n${context}\n\nNow complete your task based on the above.`
+}
+
+// Streaming version — calls onEvent for each token as it arrives.
+// The route layer formats these events as SSE and writes them to the response.
+export async function streamExecuteWorkflow(
+  nodes: NodeInput[],
+  edges: EdgeInput[],
+  goal: string,
+  onEvent: (event: StreamEvent) => void
+): Promise<void> {
+  const sorted  = topoSort(nodes, edges)
+  const outputs: Record<string, string> = {}
+
+  for (const node of sorted) {
+    onEvent({ type: 'node_start', nodeId: node.id, label: node.label })
+
+    const userMessage = buildUserMessage(node, nodes, edges, outputs, goal)
+    const { client, model } = resolveModel(node.model)
+
+    // stream: true tells the SDK to return an async iterator of chunks
+    const stream = await client.chat.completions.create({
+      model,
+      max_tokens: 2048,
+      stream: true,
+      messages: [
+        { role: 'system', content: node.systemPrompt },
+        { role: 'user',   content: userMessage },
+      ],
+    })
+
+    let fullOutput = ''
+
+    // Each chunk contains a tiny piece of text (usually 1–5 tokens)
+    for await (const chunk of stream) {
+      const token = chunk.choices[0]?.delta?.content ?? ''
+      if (token) {
+        fullOutput += token
+        onEvent({ type: 'node_token', nodeId: node.id, token })
+      }
+    }
+
+    outputs[node.id] = fullOutput
+    onEvent({ type: 'node_done', nodeId: node.id, output: fullOutput })
+  }
+
+  onEvent({ type: 'done' })
+}
+
 // Runs all nodes in topological order, chains outputs as inputs
 export async function executeWorkflow(
   nodes: NodeInput[],
@@ -70,27 +148,7 @@ export async function executeWorkflow(
   const outputs: Record<string, string> = {}
 
   for (const node of sorted) {
-    const parentIds = getParentIds(node.id, edges)
-
-    // Build what the user "says" to this agent.
-    // First node gets the original goal.
-    // Later nodes get the output from their parent(s) as context.
-    let userMessage: string
-
-    if (parentIds.length === 0) {
-      userMessage = `The workflow goal is: ${goal}\n\nComplete your task based on your role.`
-    } else {
-      // Combine all parent outputs (handles the case of multiple parents)
-      const context = parentIds
-        .map((id) => {
-          const parentLabel = nodes.find((n) => n.id === id)?.label ?? id
-          return `[${parentLabel}]:\n${outputs[id]}`
-        })
-        .join('\n\n---\n\n')
-
-      userMessage = `Here is the output from the previous step:\n\n${context}\n\nNow complete your task based on the above.`
-    }
-
+    const userMessage = buildUserMessage(node, nodes, edges, outputs, goal)
     const { client, model } = resolveModel(node.model)
 
     const response = await client.chat.completions.create({

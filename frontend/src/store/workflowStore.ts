@@ -56,6 +56,8 @@ interface WorkflowState {
   setExecuting: (executing: boolean) => void
   setNodeStatus: (id: string, status: NodeStatus) => void
   setNodeOutput: (id: string, output: string) => void
+  appendNodeOutput: (id: string, token: string) => void
+  resetExecution: () => void
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
@@ -155,11 +157,29 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       ),
     }),
 
-  // Update a single node's output without touching anything else
   setNodeOutput: (id, output) =>
     set({
       nodes: get().nodes.map((n) =>
         n.id === id ? { ...n, data: { ...n.data, output } } : n
       ),
+    }),
+
+  // Appends a streaming token to a node's output — called on every chunk
+  appendNodeOutput: (id, token) =>
+    set({
+      nodes: get().nodes.map((n) =>
+        n.id === id
+          ? { ...n, data: { ...n.data, output: (n.data.output ?? '') + token } }
+          : n
+      ),
+    }),
+
+  // Clears all outputs and resets statuses before a new run
+  resetExecution: () =>
+    set({
+      nodes: get().nodes.map((n) => ({
+        ...n,
+        data: { ...n.data, status: 'idle', output: undefined },
+      })),
     }),
 }))

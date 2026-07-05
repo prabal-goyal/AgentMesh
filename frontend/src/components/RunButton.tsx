@@ -1,11 +1,12 @@
 import { useWorkflowStore } from '../store/workflowStore'
-import { executeWorkflow } from '../api/client'
+import { streamExecuteWorkflow } from '../api/client'
 
 export function RunButton() {
   const {
     nodes, edges, goal,
     executing, setExecuting,
-    setNodeStatus, setNodeOutput,
+    setNodeStatus, appendNodeOutput,
+    resetExecution,
   } = useWorkflowStore()
 
   const canRun = nodes.length > 0 && !executing
@@ -13,33 +14,40 @@ export function RunButton() {
   async function handleRun() {
     if (!canRun) return
 
+    // Clear previous outputs and reset all nodes to idle
+    resetExecution()
     setExecuting(true)
 
-    // Mark every node as running so the canvas turns blue immediately
-    nodes.forEach((n) => setNodeStatus(n.id, 'running'))
-
     try {
-      const { results } = await executeWorkflow({
-        // Only send what the backend needs — not positions or React Flow internals
-        nodes: nodes.map((n) => ({
-          id:           n.id,
-          label:        n.data.label,
-          model:        n.data.model,
-          systemPrompt: n.data.systemPrompt,
-        })),
-        edges: edges.map((e) => ({ source: e.source, target: e.target })),
-        goal,
-      })
-
-      // Apply each node's output and mark it done
-      Object.entries(results).forEach(([id, output]) => {
-        setNodeOutput(id, output)
-        setNodeStatus(id, 'done')
-      })
+      await streamExecuteWorkflow(
+        {
+          nodes: nodes.map((n) => ({
+            id:           n.id,
+            label:        n.data.label,
+            model:        n.data.model,
+            systemPrompt: n.data.systemPrompt,
+          })),
+          edges: edges.map((e) => ({ source: e.source, target: e.target })),
+          goal,
+        },
+        (event) => {
+          // Each event type maps to a store action
+          if (event.type === 'node_start') {
+            setNodeStatus(event.nodeId, 'running')
+          } else if (event.type === 'node_token') {
+            // Append each token as it arrives — the selected node's panel updates live
+            appendNodeOutput(event.nodeId, event.token)
+          } else if (event.type === 'node_done') {
+            setNodeStatus(event.nodeId, 'done')
+          } else if (event.type === 'error') {
+            nodes.forEach((n) => setNodeStatus(n.id, 'error'))
+            console.error('Execution error:', event.message)
+          }
+        }
+      )
     } catch (err) {
-      // Mark all nodes as error so the canvas turns red
       nodes.forEach((n) => setNodeStatus(n.id, 'error'))
-      console.error('Execution failed:', err)
+      console.error('Stream failed:', err)
     } finally {
       setExecuting(false)
     }
