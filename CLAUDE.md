@@ -75,6 +75,11 @@ API keys live only in `backend/.env` — never in frontend code.
 - ✅ **Phase 5** — Real-time Streaming — SSE endpoint, fetch ReadableStream, per-token canvas updates
 - ✅ **Phase 6** — Inspection + Editing — retry single node, copy output, auto-scroll, reset button
 - ✅ **Phase 7** — Tavily web search — tool use loop, streaming tool call detection, Research nodes only
+- 🔲 **Phase 8** — Action Nodes (Connectors) — non-LLM nodes, Slack webhook, generic HTTP webhook, GitHub issue creation, executor routes by nodeType ← **NEXT**
+- 🔲 **Phase 9** — Conditional / Router Node — yes/no branching, dynamic DAG pruning, skipped node status on canvas
+- 🔲 **Phase 10** — Parallel Execution — wave-based topo sort, Promise.allSettled per wave, concurrent SSE events, multiple nodes running simultaneously
+- 🔲 **Phase 11** — Run History + Cost Tracker — run_usage SSE event, token counts from API response, Zustand history stack, cost per model per run, history sidebar
+- 🔲 **Phase 12** — Save / Load + Templates — Blob + URL.createObjectURL export, FileReader import, drag-drop JSON, 3 built-in templates (blog writer, research report, code reviewer)
 
 ## Session Resume Instructions
 
