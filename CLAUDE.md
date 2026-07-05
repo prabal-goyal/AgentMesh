@@ -64,7 +64,8 @@ API keys live only in `backend/.env` — never in frontend code.
 ## Development Phases
 
 - ✅ **Phase 1** — Project scaffold — pnpm workspaces, Vite + React 19, Express 5, git init, CLAUDE.md
-- 🔲 **Phase 2** — Canvas UI (React Flow, node types, edges) ← **NEXT**
+- ✅ **Phase 2** — Canvas UI — React Flow canvas, 4 custom node types, Zustand store, config panel
+- 🔲 **Phase 3** — AI Planner (NL → workflow graph) ← **NEXT**
 - 🔲 **Phase 3** — AI Planner (NL → workflow graph)
 - 🔲 **Phase 4** — Execution Engine (topological sort, node runner)
 - 🔲 **Phase 5** — Real-time Streaming (SSE)
