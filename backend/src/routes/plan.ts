@@ -51,6 +51,8 @@ router.post('/', async (req, res) => {
   const response = await client.chat.completions.create({
     model,
     response_format: { type: 'json_object' },
+    // cap at 1024 — a workflow JSON with 5 nodes needs ~400 tokens at most
+    max_tokens: 1024,
     messages: [
       { role: 'system', content: PLANNER_SYSTEM_PROMPT },
       { role: 'user',   content: goal },
