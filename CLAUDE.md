@@ -74,8 +74,6 @@ API keys live only in `backend/.env` — never in frontend code.
 - ✅ **Phase 4** — Execution Engine — topological sort (Kahn's), sequential node runner, context chaining
 - ✅ **Phase 5** — Real-time Streaming — SSE endpoint, fetch ReadableStream, per-token canvas updates
 - 🔲 **Phase 6** — Inspection + Editing (retry, inline edit) ← **NEXT**
-- 🔲 **Phase 5** — Real-time Streaming (SSE)
-- 🔲 **Phase 6** — Inspection + Editing (retry, inline edit)
 - 🔲 **Phase 7** — Tavily web search integration for Research nodes (RAG pattern)
 
 ## Session Resume Instructions
