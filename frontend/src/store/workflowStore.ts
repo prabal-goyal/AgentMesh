@@ -9,6 +9,17 @@ import {
 } from '@xyflow/react'
 import type { WorkflowNode, WorkflowEdge, WorkflowNodeData, NodeType, NodeStatus } from '../types/workflow'
 
+// ── Screen navigation ──────────────────────────────────────────────────────
+// The app is a screen-based SPA: each string maps to a full-page view
+export type AppScreen = 'home' | 'chat' | 'generating' | 'builder' | 'running' | 'results'
+
+// ── Sidebar messages (AI Director conversation) ────────────────────────────
+export interface SidebarMessage {
+  id: string
+  role: 'user' | 'ai'
+  content: string
+}
+
 // Default model per node type — matches our OpenRouter model strategy
 const NODE_MODEL_DEFAULTS: Record<NodeType, string> = {
   research:    'google/gemini-2.5-flash',
@@ -26,7 +37,6 @@ const NODE_PROMPT_DEFAULTS: Record<NodeType, string> = {
   conditional: '',
 }
 
-// Label shown on the node by default
 const NODE_LABEL_DEFAULTS: Record<NodeType, string> = {
   research:    'Research',
   writer:      'Writer',
@@ -36,68 +46,68 @@ const NODE_LABEL_DEFAULTS: Record<NodeType, string> = {
 }
 
 interface WorkflowState {
+  // ── Canvas state ──
   nodes: WorkflowNode[]
   edges: WorkflowEdge[]
   selectedNodeId: string | null
   goal: string
   executing: boolean
 
-  // React Flow calls these when the user drags, deletes, or resizes nodes/edges
+  // ── Screen navigation ──
+  screen: AppScreen
+
+  // ── AI Director sidebar messages ──
+  sidebarMessages: SidebarMessage[]
+
+  // ── Run timing (used by ResultsScreen to show elapsed seconds) ──
+  runStartTime: number | null
+  runEndTime:   number | null
+
+  // ── React Flow handlers ──
   onNodesChange: (changes: NodeChange<WorkflowNode>[]) => void
   onEdgesChange: (changes: EdgeChange[]) => void
+  onConnect:     (connection: Connection) => void
 
-  // React Flow calls this when the user draws a connection between two nodes
-  onConnect: (connection: Connection) => void
-
-  // Our own actions
-  addNode: (type: NodeType) => void
+  // ── Canvas actions ──
+  addNode:        (type: NodeType) => void
   updateNodeData: (id: string, data: Partial<WorkflowNodeData>) => void
-  deleteNode: (id: string) => void
-  selectNode: (id: string | null) => void
-  setWorkflow: (nodes: WorkflowNode[], edges: WorkflowEdge[]) => void
-  setGoal: (goal: string) => void
-  setExecuting: (executing: boolean) => void
-  setNodeStatus: (id: string, status: NodeStatus) => void
-  setNodeOutput: (id: string, output: string) => void
-  appendNodeOutput: (id: string, token: string) => void
-  resetExecution: () => void
+  deleteNode:     (id: string) => void
+  selectNode:     (id: string | null) => void
+  setWorkflow:    (nodes: WorkflowNode[], edges: WorkflowEdge[]) => void
+  setGoal:        (goal: string) => void
+
+  // ── Execution actions ──
+  setExecuting:      (executing: boolean) => void
+  setNodeStatus:     (id: string, status: NodeStatus) => void
+  setNodeOutput:     (id: string, output: string) => void
+  appendNodeOutput:  (id: string, token: string) => void
+  resetExecution:    () => void
+
+  // ── Navigation actions ──
+  setScreen: (screen: AppScreen) => void
+
+  // ── Sidebar actions ──
+  addSidebarMessage:   (msg: Omit<SidebarMessage, 'id'>) => void
+  clearSidebarMessages: () => void
+
+  // ── Timing actions ──
+  setRunTiming: (start: number | null, end: number | null) => void
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
-  // Two starter nodes so the canvas isn't empty on first load
-  nodes: [
-    {
-      id: '1',
-      type: 'research',
-      position: { x: 100, y: 180 },
-      data: {
-        label: 'Research',
-        nodeType: 'research',
-        model: NODE_MODEL_DEFAULTS.research,
-        systemPrompt: NODE_PROMPT_DEFAULTS.research,
-        status: 'idle',
-      },
-    },
-    {
-      id: '2',
-      type: 'writer',
-      position: { x: 420, y: 180 },
-      data: {
-        label: 'Writer',
-        nodeType: 'writer',
-        model: NODE_MODEL_DEFAULTS.writer,
-        systemPrompt: NODE_PROMPT_DEFAULTS.writer,
-        status: 'idle',
-      },
-    },
-  ],
+  // Canvas starts empty — the Home screen drives workflow creation
+  nodes: [],
   edges: [],
   selectedNodeId: null,
   goal: '',
   executing: false,
 
-  // React Flow gives us a list of changes (move, remove, select)
-  // applyNodeChanges applies them to our array and returns the updated array
+  screen: 'home',
+  sidebarMessages: [],
+  runStartTime: null,
+  runEndTime:   null,
+
+  // React Flow calls these when the user drags, deletes, or resizes nodes/edges
   onNodesChange: (changes) =>
     set({ nodes: applyNodeChanges(changes, get().nodes) }),
 
@@ -115,10 +125,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       ? {
           ...connection,
           label: connection.sourceHandle === 'yes' ? 'Yes' : 'No',
-          // Green for Yes, red for No — matches the handle colors on the RouterNode
-          style: { stroke: connection.sourceHandle === 'yes' ? '#22c55e' : '#ef4444' },
-          labelStyle: { fill: connection.sourceHandle === 'yes' ? '#16a34a' : '#dc2626', fontWeight: 600, fontSize: 11 },
-          labelBgStyle: { fill: '#fff', fillOpacity: 0.85 },
+          style:        { stroke: connection.sourceHandle === 'yes' ? '#16a34a' : '#dc2626' },
+          labelStyle:   { fill: connection.sourceHandle === 'yes' ? '#16a34a' : '#dc2626', fontWeight: 600, fontSize: 11 },
+          labelBgStyle: { fill: '#ffffff', fillOpacity: 1 },
         }
       : connection
 
@@ -126,8 +135,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   addNode: (type) => {
-    const id = crypto.randomUUID()
-    // Offset each new node slightly so they don't stack
+    const id    = crypto.randomUUID()
     const count = get().nodes.length
     const newNode: WorkflowNode = {
       id,
@@ -139,7 +147,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         model:        NODE_MODEL_DEFAULTS[type],
         systemPrompt: NODE_PROMPT_DEFAULTS[type],
         status:       'idle',
-        // Conditional nodes start with an empty condition — user fills it in the config panel
         ...(type === 'conditional' ? { condition: '' } : {}),
       },
     }
@@ -155,23 +162,19 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   deleteNode: (id) =>
     set({
-      // Remove the node itself
-      nodes: get().nodes.filter((n) => n.id !== id),
-      // Remove any edges that were connected to this node
-      edges: get().edges.filter((e) => e.source !== id && e.target !== id),
-      // Clear selection if the deleted node was selected
+      nodes:          get().nodes.filter((n) => n.id !== id),
+      edges:          get().edges.filter((e) => e.source !== id && e.target !== id),
       selectedNodeId: get().selectedNodeId === id ? null : get().selectedNodeId,
     }),
 
   selectNode: (id) => set({ selectedNodeId: id }),
 
-  // Replaces the entire canvas with a new set of nodes and edges (used by AI Planner)
+  // Replaces the entire canvas with a new set of nodes and edges
   setWorkflow: (nodes, edges) => set({ nodes, edges, selectedNodeId: null }),
 
-  setGoal: (goal) => set({ goal }),
+  setGoal:      (goal)      => set({ goal }),
   setExecuting: (executing) => set({ executing }),
 
-  // Update a single node's status without touching anything else
   setNodeStatus: (id, status) =>
     set({
       nodes: get().nodes.map((n) =>
@@ -186,7 +189,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       ),
     }),
 
-  // Appends a streaming token to a node's output — called on every chunk
   appendNodeOutput: (id, token) =>
     set({
       nodes: get().nodes.map((n) =>
@@ -196,7 +198,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       ),
     }),
 
-  // Clears all outputs and resets statuses before a new run
   resetExecution: () =>
     set({
       nodes: get().nodes.map((n) => ({
@@ -204,4 +205,21 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         data: { ...n.data, status: 'idle', output: undefined },
       })),
     }),
+
+  // ── Navigation ──
+  setScreen: (screen) => set({ screen }),
+
+  // ── Sidebar ──
+  addSidebarMessage: (msg) =>
+    set({
+      sidebarMessages: [
+        ...get().sidebarMessages,
+        { id: crypto.randomUUID(), ...msg },
+      ],
+    }),
+
+  clearSidebarMessages: () => set({ sidebarMessages: [] }),
+
+  // ── Timing ──
+  setRunTiming: (start, end) => set({ runStartTime: start, runEndTime: end }),
 }))

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useWorkflowStore } from '../store/workflowStore'
+import { useWorkflowStore }   from '../store/workflowStore'
 import { streamExecuteWorkflow } from '../api/client'
 
 const AVAILABLE_MODELS = [
@@ -20,15 +20,11 @@ export function NodeConfigPanel() {
 
   const node = nodes.find((n) => n.id === selectedNodeId)
 
-  // Local state — only this panel cares about these
   const [retrying, setRetrying] = useState(false)
   const [copied,   setCopied]   = useState(false)
 
-  // Ref to the output div so we can scroll it programmatically
   const outputRef = useRef<HTMLDivElement>(null)
 
-  // After every render where output changed, scroll to the bottom.
-  // useEffect runs AFTER the DOM update — so scrollHeight already includes new content.
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight
@@ -41,22 +37,15 @@ export function NodeConfigPanel() {
 
   // ── Retry ────────────────────────────────────────────────────────────────
   async function handleRetry() {
-    // node is derived from nodes.find() — TypeScript can't narrow it across
-    // the outer if(!node) return null, so we re-check inside the closure
     if (!node || retrying) return
     setRetrying(true)
 
-    // Clear previous output and mark as idle before re-running
     updateNodeData(node.id, { output: undefined, status: 'idle' })
 
-    // Find what this node depends on (its parent nodes)
     const parentIds = edges
       .filter((e) => e.target === node.id)
       .map((e) => e.source)
 
-    // Build the context the node will receive.
-    // No parents → use the original goal typed by the user.
-    // Has parents → combine their stored outputs as context.
     let retryGoal: string
     if (parentIds.length === 0) {
       retryGoal = storeGoal || 'Complete your task.'
@@ -73,8 +62,6 @@ export function NodeConfigPanel() {
     setNodeStatus(node.id, 'running')
 
     try {
-      // Reuse the existing stream endpoint with just this one node.
-      // Single node + no edges = topo sort returns [this node], runs once.
       await streamExecuteWorkflow(
         {
           nodes: [{
@@ -106,7 +93,6 @@ export function NodeConfigPanel() {
     if (!data.output) return
     await navigator.clipboard.writeText(data.output)
     setCopied(true)
-    // Reset label back to "Copy" after 2 seconds
     setTimeout(() => setCopied(false), 2000)
   }
 
@@ -116,21 +102,20 @@ export function NodeConfigPanel() {
   const isError   = data.status === 'error'
 
   return (
-    <aside className="w-72 border-l bg-white flex flex-col shrink-0">
+    <aside className="w-72 border-l border-[#e2e8f0] bg-white flex flex-col flex-shrink-0">
       {/* ── Header ── */}
-      <div className="p-4 border-b flex items-start justify-between shrink-0">
+      <div className="px-4 py-3.5 border-b border-[#e2e8f0] flex items-start justify-between flex-shrink-0">
         <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+          <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-[.07em]">
             Node Config
           </p>
-          <p className="text-sm font-medium text-gray-700 mt-1 capitalize">
+          <p className="text-[13px] font-semibold text-[#0f172a] mt-1 capitalize">
             {data.nodeType} node
           </p>
         </div>
         <button
           onClick={() => deleteNode(node.id)}
-          className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors"
-        >
+          className="text-[12px] text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors">
           Delete
         </button>
       </div>
@@ -139,42 +124,40 @@ export function NodeConfigPanel() {
       <div className="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
 
         {/* Label */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Label</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-semibold text-[#64748b] uppercase tracking-[.06em]">Label</label>
           <input
             value={data.label}
             onChange={(e) => updateNodeData(node.id, { label: e.target.value })}
-            className="border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="bg-[#f8fafc] border border-[#e2e8f0] rounded px-3 py-1.5 text-[13px] text-[#0f172a] outline-none focus:border-[#94a3b8] transition-colors"
           />
         </div>
 
-        {/* Condition — only shown for Router nodes */}
+        {/* Condition — only for Router nodes */}
         {data.nodeType === 'conditional' && (
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-500">Condition</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-[#64748b] uppercase tracking-[.06em]">Condition</label>
             <input
               value={(data.condition as string) ?? ''}
               onChange={(e) => updateNodeData(node.id, { condition: e.target.value })}
               placeholder="contains:approved"
-              className="border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-300"
+              className="bg-[#f8fafc] border border-[#e2e8f0] rounded px-3 py-1.5 text-[13px] text-[#0f172a] outline-none focus:border-amber-400/60 transition-colors"
             />
-            {/* Inline hint so the user knows the format without leaving the panel */}
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              <strong>contains:word</strong> — YES if parent output includes "word"<br />
-              <strong>not-contains:word</strong> — YES if it does NOT include "word"
+            <p className="text-[11px] text-[#94a3b8] leading-relaxed">
+              <span className="text-[#64748b] font-medium">contains:word</span> — YES if parent includes "word"<br />
+              <span className="text-[#64748b] font-medium">not-contains:word</span> — YES if it does NOT
             </p>
           </div>
         )}
 
-        {/* Model — hidden for Router nodes (they don't call an AI) */}
+        {/* Model — hidden for Router nodes */}
         {data.nodeType !== 'conditional' && (
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-500">Model</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-[#64748b] uppercase tracking-[.06em]">Model</label>
             <select
               value={data.model}
               onChange={(e) => updateNodeData(node.id, { model: e.target.value })}
-              className="border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            >
+              className="bg-[#f8fafc] border border-[#e2e8f0] rounded px-3 py-1.5 text-[13px] text-[#0f172a] outline-none focus:border-[#94a3b8] transition-colors">
               {AVAILABLE_MODELS.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
@@ -182,54 +165,48 @@ export function NodeConfigPanel() {
           </div>
         )}
 
-        {/* System prompt — hidden for Router nodes */}
+        {/* System Prompt — hidden for Router nodes */}
         {data.nodeType !== 'conditional' && (
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-500">System Prompt</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-[#64748b] uppercase tracking-[.06em]">System Prompt</label>
             <textarea
               value={data.systemPrompt}
               onChange={(e) => updateNodeData(node.id, { systemPrompt: e.target.value })}
               rows={5}
-              className="border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="bg-[#f8fafc] border border-[#e2e8f0] rounded px-3 py-1.5 text-[13px] text-[#0f172a] resize-none outline-none focus:border-[#94a3b8] transition-colors"
             />
           </div>
         )}
 
-        {/* Retry button — shown when node has been run (done or error) */}
+        {/* Retry button */}
         {(isDone || isError) && (
           <button
             onClick={handleRetry}
             disabled={retrying}
-            className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-blue-200 text-blue-500 hover:bg-blue-50 disabled:opacity-40 text-sm rounded-lg transition-colors"
-          >
-            <span>↺</span>
+            className="flex items-center justify-center gap-1.5 px-3 py-2 border border-[#e2e8f0] text-[#64748b] hover:border-[#94a3b8] hover:text-[#0f172a] hover:bg-[#f8fafc] disabled:opacity-40 text-[13px] rounded transition-all">
             {retrying ? 'Retrying…' : 'Retry Node'}
           </button>
         )}
 
-        {/* Output — shown while running or after completion */}
+        {/* Output */}
         {(hasOutput || isRunning) && (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-gray-500">Output</label>
+              <label className="text-[11px] font-semibold text-[#64748b] uppercase tracking-[.06em]">Output</label>
               {hasOutput && (
                 <button
                   onClick={handleCopy}
-                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {copied ? '✓ Copied' : 'Copy'}
+                  className="text-[12px] text-[#94a3b8] hover:text-[#64748b] transition-colors">
+                  {copied ? 'Copied' : 'Copy'}
                 </button>
               )}
             </div>
-
-            {/* ref lets useEffect scroll this div to bottom on each new token */}
             <div
               ref={outputRef}
-              className="border border-gray-200 rounded-md px-3 py-2 text-xs text-gray-700 bg-gray-50 h-52 overflow-y-auto whitespace-pre-wrap leading-relaxed"
-            >
+              className="border border-[#e2e8f0] rounded px-3 py-2 text-[12px] text-[#374151] bg-[#f8fafc] h-52 overflow-y-auto whitespace-pre-wrap leading-relaxed">
               {hasOutput
                 ? data.output
-                : <span className="text-gray-400 italic">Generating…</span>
+                : <span className="text-[#94a3b8] italic">Generating…</span>
               }
             </div>
           </div>

@@ -1,10 +1,10 @@
 import { ReactFlow, Background, Controls, BackgroundVariant } from '@xyflow/react'
 import { useWorkflowStore } from '../store/workflowStore'
-import { ResearchNode } from './nodes/ResearchNode'
-import { WriterNode } from './nodes/WriterNode'
-import { CriticNode } from './nodes/CriticNode'
-import { CustomNode } from './nodes/CustomNode'
-import { RouterNode } from './nodes/RouterNode'
+import { ResearchNode }  from './nodes/ResearchNode'
+import { WriterNode }    from './nodes/WriterNode'
+import { CriticNode }    from './nodes/CriticNode'
+import { CustomNode }    from './nodes/CustomNode'
+import { RouterNode }    from './nodes/RouterNode'
 
 // Defined OUTSIDE the component — if this were inside, React Flow would
 // see a new object on every render and remount every node (causes flicker)
@@ -21,7 +21,6 @@ export function Canvas() {
     useWorkflowStore()
 
   return (
-    // React Flow needs an explicit height on its container
     <div className="w-full h-full">
       <ReactFlow
         nodes={nodes}
@@ -33,9 +32,14 @@ export function Canvas() {
         onNodeClick={(_, node) => selectNode(node.id)}
         onPaneClick={() => selectNode(null)}
         fitView
-        className="bg-gray-50"
+        style={{ background: '#f8fafc' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#d1d5db" />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={22}
+          size={1}
+          color="#e2e8f0"
+        />
         <Controls />
       </ReactFlow>
     </div>

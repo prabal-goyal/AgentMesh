@@ -1,64 +1,64 @@
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { WorkflowNodeData } from '../../types/workflow'
 
-// Color palette per node type
+// Light-themed status colors
 const STATUS_COLORS: Record<string, string> = {
-  idle:    'bg-white border-gray-200',
-  running: 'bg-blue-50 border-blue-400',
-  done:    'bg-green-50 border-green-400',
-  error:   'bg-red-50 border-red-400',
-  skipped: 'bg-gray-50 border-gray-300 opacity-50',
+  idle:    'bg-white border-[#e2e8f0]',
+  running: 'bg-[#eff6ff] border-blue-400/70',
+  done:    'bg-[#f0fdf4] border-green-400/60',
+  error:   'bg-[#fef2f2] border-red-400/60',
+  skipped: 'bg-white border-[#e2e8f0] opacity-40',
 }
 
 const STATUS_DOT: Record<string, string> = {
-  idle:    'bg-gray-300',
-  running: 'bg-blue-400 animate-pulse',
-  done:    'bg-green-400',
-  error:   'bg-red-400',
-  skipped: 'bg-gray-300',
+  idle:    'bg-[#cbd5e1]',
+  running: 'bg-blue-500 animate-pulse',
+  done:    'bg-green-500',
+  error:   'bg-red-500',
+  skipped: 'bg-[#cbd5e1]',
 }
 
 interface BaseNodeProps extends NodeProps<Node<WorkflowNodeData>> {
-  accentColor: string  // e.g. 'border-t-blue-500'
-  icon: string         // emoji or short label
+  accentColor: string  // e.g. 'bg-blue-500'
 }
 
-export function BaseNode({ data, selected, accentColor, icon }: BaseNodeProps) {
+export function BaseNode({ data, selected, accentColor }: BaseNodeProps) {
   const statusStyle = STATUS_COLORS[data.status] ?? STATUS_COLORS.idle
   const dotStyle    = STATUS_DOT[data.status]    ?? STATUS_DOT.idle
 
   return (
     <div
       className={`
-        w-44 rounded-lg border-2 shadow-sm
+        w-44 rounded border-2 shadow-sm
         ${statusStyle}
-        ${selected ? 'ring-2 ring-blue-400 ring-offset-1' : ''}
+        ${selected ? 'ring-2 ring-[#4f46e5]/50 ring-offset-1 ring-offset-white' : ''}
       `}
     >
-      {/* Colored top bar acts as the node type indicator */}
-      <div className={`h-1 rounded-t-md ${accentColor}`} />
+      {/* Colored top bar — indicates node type at a glance */}
+      <div className={`h-[3px] rounded-t ${accentColor}`} />
 
-      <div className="px-3 py-2">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-lg">{icon}</span>
-          {/* Status dot */}
-          <span className={`w-2 h-2 rounded-full ${dotStyle}`} />
+      <div className="px-3 py-2.5">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-[.07em] text-[#94a3b8]">
+            {data.nodeType}
+          </span>
+          <span className={`w-[7px] h-[7px] rounded-full ${dotStyle}`} />
         </div>
-        <p className="text-sm font-medium text-gray-800 truncate">{data.label}</p>
-        <p className="text-xs text-gray-400 truncate">{data.model}</p>
+        <p className="text-[13px] font-semibold text-[#0f172a] truncate">{data.label}</p>
+        <p className="text-[11px] text-[#94a3b8] truncate mt-[2px]">{data.model}</p>
       </div>
 
-      {/* Left handle = input (receives output from previous node) */}
+      {/* Left handle = input */}
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-3 !h-3 !border-2 !border-white !bg-gray-400"
+        className="!w-3 !h-3 !border-2 !border-white !bg-[#94a3b8]"
       />
-      {/* Right handle = output (sends output to next node) */}
+      {/* Right handle = output */}
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-3 !h-3 !border-2 !border-white !bg-gray-400"
+        className="!w-3 !h-3 !border-2 !border-white !bg-[#94a3b8]"
       />
     </div>
   )

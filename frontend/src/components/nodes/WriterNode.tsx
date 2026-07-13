@@ -3,5 +3,5 @@ import { BaseNode } from './BaseNode'
 import type { WorkflowNodeData } from '../../types/workflow'
 
 export function WriterNode(props: NodeProps<Node<WorkflowNodeData>>) {
-  return <BaseNode {...props} accentColor="bg-green-500" icon="✍️" />
+  return <BaseNode {...props} accentColor="bg-violet-500" />
 }
