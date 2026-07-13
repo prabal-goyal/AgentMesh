@@ -27,20 +27,23 @@ export function RunButton() {
             model:        n.data.model,
             systemPrompt: n.data.systemPrompt,
             nodeType:     n.data.nodeType,
+            condition:    n.data.condition as string | undefined,
           })),
-          edges: edges.map((e) => ({ source: e.source, target: e.target })),
+          // sourceHandle must be preserved: the executor reads it to know
+          // which branch ('yes' or 'no') an edge belongs to for DAG pruning
+          edges: edges.map((e) => ({
+            source:       e.source,
+            target:       e.target,
+            sourceHandle: e.sourceHandle ?? undefined,
+          })),
           goal,
         },
         (event) => {
-          // Each event type maps to a store action
-          if (event.type === 'node_start') {
-            setNodeStatus(event.nodeId, 'running')
-          } else if (event.type === 'node_token') {
-            // Append each token as it arrives — the selected node's panel updates live
-            appendNodeOutput(event.nodeId, event.token)
-          } else if (event.type === 'node_done') {
-            setNodeStatus(event.nodeId, 'done')
-          } else if (event.type === 'error') {
+          if      (event.type === 'node_start')   setNodeStatus(event.nodeId, 'running')
+          else if (event.type === 'node_token')   appendNodeOutput(event.nodeId, event.token)
+          else if (event.type === 'node_done')    setNodeStatus(event.nodeId, 'done')
+          else if (event.type === 'node_skipped') setNodeStatus(event.nodeId, 'skipped')
+          else if (event.type === 'error') {
             nodes.forEach((n) => setNodeStatus(n.id, 'error'))
             console.error('Execution error:', event.message)
           }

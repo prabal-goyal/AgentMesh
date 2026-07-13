@@ -6,12 +6,14 @@ export interface NodeInput {
   label: string
   model: string
   systemPrompt: string
-  nodeType?: string  // used to decide whether to offer the search tool
+  nodeType?: string   // used to decide whether to offer the search tool
+  condition?: string  // only used when nodeType === 'conditional'
 }
 
 export interface EdgeInput {
   source: string
   target: string
+  sourceHandle?: string  // 'yes' or 'no' for edges leaving a conditional node
 }
 
 // Kahn's algorithm — returns nodes in an order where every node
@@ -48,10 +50,32 @@ function getParentIds(nodeId: string, edges: EdgeInput[]): string[] {
   return edges.filter((e) => e.target === nodeId).map((e) => e.source)
 }
 
+// Evaluates a simple condition string against the prior node's text output.
+// Format: "contains:keyword" or "not-contains:keyword". Empty = always true.
+function evaluateCondition(condition: string, output: string): boolean {
+  const lower = output.toLowerCase()
+  if (condition.startsWith('contains:')) {
+    return lower.includes(condition.slice('contains:'.length).toLowerCase().trim())
+  }
+  if (condition.startsWith('not-contains:')) {
+    return !lower.includes(condition.slice('not-contains:'.length).toLowerCase().trim())
+  }
+  return true  // empty or unknown condition defaults to YES branch
+}
+
+// A node is skipped if it was explicitly pruned OR all of its parents are skipped.
+// The "all parents" rule cascades the skip down a chain: A → B → C, skip A → skip B → skip C.
+function shouldSkip(nodeId: string, edges: EdgeInput[], skipped: Set<string>): boolean {
+  if (skipped.has(nodeId)) return true
+  const parentIds = edges.filter((e) => e.target === nodeId).map((e) => e.source)
+  return parentIds.length > 0 && parentIds.every((id) => skipped.has(id))
+}
+
 export type StreamEvent =
-  | { type: 'node_start'; nodeId: string; label: string }
-  | { type: 'node_token'; nodeId: string; token: string }
-  | { type: 'node_done';  nodeId: string; output: string }
+  | { type: 'node_start';   nodeId: string; label: string }
+  | { type: 'node_token';   nodeId: string; token: string }
+  | { type: 'node_done';    nodeId: string; output: string }
+  | { type: 'node_skipped'; nodeId: string }
   | { type: 'done' }
   | { type: 'error'; message: string }
 
@@ -221,14 +245,41 @@ export async function streamExecuteWorkflow(
 ): Promise<void> {
   const sorted  = topoSort(nodes, edges)
   const outputs: Record<string, string> = {}
+  const skipped = new Set<string>()
 
   for (const node of sorted) {
+    // Cascade: skip nodes whose entire parent chain was pruned
+    if (shouldSkip(node.id, edges, skipped)) {
+      skipped.add(node.id)
+      onEvent({ type: 'node_skipped', nodeId: node.id })
+      continue
+    }
+
+    // Conditional nodes don't call an AI — they evaluate a condition and prune a branch
+    if (node.nodeType === 'conditional') {
+      onEvent({ type: 'node_start', nodeId: node.id, label: node.label })
+
+      const parentIds    = getParentIds(node.id, edges)
+      const parentOutput = parentIds.map((id) => outputs[id] ?? '').join('\n')
+      const conditionMet = evaluateCondition(node.condition ?? '', parentOutput)
+      const result       = conditionMet ? 'yes' : 'no'
+      const prunedHandle = conditionMet ? 'no'  : 'yes'
+
+      // Any edge leaving via the pruned handle targets a node we should skip
+      edges
+        .filter((e) => e.source === node.id && e.sourceHandle === prunedHandle)
+        .forEach((e) => skipped.add(e.target))
+
+      outputs[node.id] = result
+      onEvent({ type: 'node_done', nodeId: node.id, output: `Branch taken: ${result.toUpperCase()}` })
+      continue
+    }
+
+    // Regular AI node
     onEvent({ type: 'node_start', nodeId: node.id, label: node.label })
-
     const userMessage = buildUserMessage(node, nodes, edges, outputs, goal)
-    const output = await runNode(node, userMessage, onEvent)
-
-    outputs[node.id] = output
+    const output      = await runNode(node, userMessage, onEvent)
+    outputs[node.id]  = output
     onEvent({ type: 'node_done', nodeId: node.id, output })
   }
 

@@ -7,6 +7,7 @@ const STATUS_COLORS: Record<string, string> = {
   running: 'bg-blue-50 border-blue-400',
   done:    'bg-green-50 border-green-400',
   error:   'bg-red-50 border-red-400',
+  skipped: 'bg-gray-50 border-gray-300 opacity-50',
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -14,6 +15,7 @@ const STATUS_DOT: Record<string, string> = {
   running: 'bg-blue-400 animate-pulse',
   done:    'bg-green-400',
   error:   'bg-red-400',
+  skipped: 'bg-gray-300',
 }
 
 interface BaseNodeProps extends NodeProps<Node<WorkflowNodeData>> {

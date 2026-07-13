@@ -24,18 +24,27 @@ Return ONLY a JSON object — no explanation, no markdown, just raw JSON — wit
 }
 
 Available node types and their default models:
-- "research" → use model: google/gemini-2.5-flash  (gathers and summarizes information)
-- "writer"   → use model: anthropic/claude-haiku-4-5 (creates written content)
-- "critic"   → use model: openai/gpt-4o-mini        (reviews and critiques output)
-- "custom"   → use model: openai/gpt-4o-mini        (general purpose agent)
+- "research"     → model: google/gemini-2.5-flash   (gathers and summarizes information)
+- "writer"       → model: anthropic/claude-haiku-4-5 (creates written content)
+- "critic"       → model: openai/gpt-4o-mini         (reviews and critiques output)
+- "custom"       → model: openai/gpt-4o-mini         (general purpose agent)
+- "conditional"  → model: ""                          (routes flow based on a text condition — NO AI call)
+
+For "conditional" nodes:
+- Add a "condition" field: "contains:keyword" (YES if output includes keyword) or "not-contains:keyword" (YES if it does NOT)
+- Edges FROM a conditional node MUST have "sourceHandle": "yes" or "sourceHandle": "no"
+- Example condition node: { "id": "2", "type": "conditional", "label": "Quality Check", "condition": "contains:sufficient", "model": "", "systemPrompt": "" }
+- Example edges from it: { "source": "2", "target": "3", "sourceHandle": "yes" }, { "source": "2", "target": "4", "sourceHandle": "no" }
+- Ask the prior node to end its response with a specific keyword (e.g. "sufficient" or "insufficient") so the condition can match reliably
 
 Rules:
-- Use between 2 and 5 nodes
+- Use between 2 and 6 nodes
 - Node ids must be sequential strings: "1", "2", "3"...
 - Edges must form a forward-only flow — no cycles allowed
 - Edge source and target must exactly match node ids
 - Each systemPrompt must be specific to that agent's role in this workflow
-- The first node has no incoming edges; the last node has no outgoing edges`
+- The first node has no incoming edges; the last node(s) have no outgoing edges
+- Only use "conditional" when the goal genuinely benefits from branching — most simple workflows don't need it`
 
 router.post('/', async (req, res) => {
   const { goal } = req.body as { goal: string }

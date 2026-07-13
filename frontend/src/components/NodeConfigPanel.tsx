@@ -41,7 +41,9 @@ export function NodeConfigPanel() {
 
   // ── Retry ────────────────────────────────────────────────────────────────
   async function handleRetry() {
-    if (retrying) return
+    // node is derived from nodes.find() — TypeScript can't narrow it across
+    // the outer if(!node) return null, so we re-check inside the closure
+    if (!node || retrying) return
     setRetrying(true)
 
     // Clear previous output and mark as idle before re-running
@@ -81,6 +83,7 @@ export function NodeConfigPanel() {
             model:        data.model,
             systemPrompt: data.systemPrompt,
             nodeType:     data.nodeType,
+            condition:    data.condition as string | undefined,
           }],
           edges: [],
           goal:  retryGoal,
@@ -145,30 +148,52 @@ export function NodeConfigPanel() {
           />
         </div>
 
-        {/* Model */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Model</label>
-          <select
-            value={data.model}
-            onChange={(e) => updateNodeData(node.id, { model: e.target.value })}
-            className="border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            {AVAILABLE_MODELS.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        </div>
+        {/* Condition — only shown for Router nodes */}
+        {data.nodeType === 'conditional' && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-500">Condition</label>
+            <input
+              value={(data.condition as string) ?? ''}
+              onChange={(e) => updateNodeData(node.id, { condition: e.target.value })}
+              placeholder="contains:approved"
+              className="border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-300"
+            />
+            {/* Inline hint so the user knows the format without leaving the panel */}
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              <strong>contains:word</strong> — YES if parent output includes "word"<br />
+              <strong>not-contains:word</strong> — YES if it does NOT include "word"
+            </p>
+          </div>
+        )}
 
-        {/* System prompt */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">System Prompt</label>
-          <textarea
-            value={data.systemPrompt}
-            onChange={(e) => updateNodeData(node.id, { systemPrompt: e.target.value })}
-            rows={5}
-            className="border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
-          />
-        </div>
+        {/* Model — hidden for Router nodes (they don't call an AI) */}
+        {data.nodeType !== 'conditional' && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-500">Model</label>
+            <select
+              value={data.model}
+              onChange={(e) => updateNodeData(node.id, { model: e.target.value })}
+              className="border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            >
+              {AVAILABLE_MODELS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* System prompt — hidden for Router nodes */}
+        {data.nodeType !== 'conditional' && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-500">System Prompt</label>
+            <textarea
+              value={data.systemPrompt}
+              onChange={(e) => updateNodeData(node.id, { systemPrompt: e.target.value })}
+              rows={5}
+              className="border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+          </div>
+        )}
 
         {/* Retry button — shown when node has been run (done or error) */}
         {(isDone || isError) && (

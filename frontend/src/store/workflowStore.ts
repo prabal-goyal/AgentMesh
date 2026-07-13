@@ -11,25 +11,28 @@ import type { WorkflowNode, WorkflowEdge, WorkflowNodeData, NodeType, NodeStatus
 
 // Default model per node type — matches our OpenRouter model strategy
 const NODE_MODEL_DEFAULTS: Record<NodeType, string> = {
-  research: 'google/gemini-2.5-flash',
-  writer:   'anthropic/claude-haiku-4-5',
-  critic:   'openai/gpt-4o-mini',
-  custom:   'openai/gpt-4o-mini',
+  research:    'google/gemini-2.5-flash',
+  writer:      'anthropic/claude-haiku-4-5',
+  critic:      'openai/gpt-4o-mini',
+  custom:      'openai/gpt-4o-mini',
+  conditional: '',  // no AI call — evaluates a condition string, not a model
 }
 
 const NODE_PROMPT_DEFAULTS: Record<NodeType, string> = {
-  research: 'You are a research agent. Thoroughly research the given topic and return a structured summary with key findings.',
-  writer:   'You are a writer agent. Using the provided context, write clear and engaging content.',
-  critic:   'You are a critic agent. Review the provided content and give constructive feedback on clarity, accuracy, and quality.',
-  custom:   'You are a helpful AI agent. Complete the task described in the user message.',
+  research:    'You are a research agent. Thoroughly research the given topic and return a structured summary with key findings.',
+  writer:      'You are a writer agent. Using the provided context, write clear and engaging content.',
+  critic:      'You are a critic agent. Review the provided content and give constructive feedback on clarity, accuracy, and quality.',
+  custom:      'You are a helpful AI agent. Complete the task described in the user message.',
+  conditional: '',
 }
 
 // Label shown on the node by default
 const NODE_LABEL_DEFAULTS: Record<NodeType, string> = {
-  research: 'Research',
-  writer:   'Writer',
-  critic:   'Critic',
-  custom:   'Custom',
+  research:    'Research',
+  writer:      'Writer',
+  critic:      'Critic',
+  custom:      'Custom',
+  conditional: 'Router',
 }
 
 interface WorkflowState {
@@ -101,9 +104,26 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   onEdgesChange: (changes) =>
     set({ edges: applyEdgeChanges(changes, get().edges) }),
 
-  // addEdge merges the new connection into the existing edges array
-  onConnect: (connection) =>
-    set({ edges: addEdge(connection, get().edges) }),
+  // addEdge merges the new connection into the existing edges array.
+  // For edges leaving a Router node, we attach a visible label and color
+  // so the user can see which handle is "yes" and which is "no" on the canvas.
+  onConnect: (connection) => {
+    const sourceNode = get().nodes.find((n) => n.id === connection.source)
+    const isRouter   = sourceNode?.data.nodeType === 'conditional'
+
+    const enriched = isRouter
+      ? {
+          ...connection,
+          label: connection.sourceHandle === 'yes' ? 'Yes' : 'No',
+          // Green for Yes, red for No — matches the handle colors on the RouterNode
+          style: { stroke: connection.sourceHandle === 'yes' ? '#22c55e' : '#ef4444' },
+          labelStyle: { fill: connection.sourceHandle === 'yes' ? '#16a34a' : '#dc2626', fontWeight: 600, fontSize: 11 },
+          labelBgStyle: { fill: '#fff', fillOpacity: 0.85 },
+        }
+      : connection
+
+    set({ edges: addEdge(enriched, get().edges) })
+  },
 
   addNode: (type) => {
     const id = crypto.randomUUID()
@@ -114,11 +134,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       type,
       position: { x: 100 + count * 40, y: 100 + count * 40 },
       data: {
-        label: NODE_LABEL_DEFAULTS[type],
-        nodeType: type,
-        model: NODE_MODEL_DEFAULTS[type],
+        label:        NODE_LABEL_DEFAULTS[type],
+        nodeType:     type,
+        model:        NODE_MODEL_DEFAULTS[type],
         systemPrompt: NODE_PROMPT_DEFAULTS[type],
-        status: 'idle',
+        status:       'idle',
+        // Conditional nodes start with an empty condition — user fills it in the config panel
+        ...(type === 'conditional' ? { condition: '' } : {}),
       },
     }
     set({ nodes: [...get().nodes, newNode] })

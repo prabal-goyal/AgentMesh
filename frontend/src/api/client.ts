@@ -7,8 +7,13 @@ export async function generatePlan(goal: string): Promise<{
     label: string
     systemPrompt: string
     model: string
+    condition?: string   // only present on conditional nodes
   }>
-  edges: Array<{ source: string; target: string }>
+  edges: Array<{
+    source: string
+    target: string
+    sourceHandle?: string  // 'yes' or 'no' for edges from conditional nodes
+  }>
 }> {
   const res = await fetch(`${API_BASE}/api/plan`, {
     method: 'POST',
@@ -45,9 +50,10 @@ export async function executeWorkflow(payload: {
 
 // Mirror of the backend StreamEvent type
 export type StreamEvent =
-  | { type: 'node_start'; nodeId: string; label: string }
-  | { type: 'node_token'; nodeId: string; token: string }
-  | { type: 'node_done';  nodeId: string; output: string }
+  | { type: 'node_start';   nodeId: string; label: string }
+  | { type: 'node_token';   nodeId: string; token: string }
+  | { type: 'node_done';    nodeId: string; output: string }
+  | { type: 'node_skipped'; nodeId: string }
   | { type: 'done' }
   | { type: 'error'; message: string }
 
@@ -55,8 +61,8 @@ export type StreamEvent =
 // Uses fetch + ReadableStream instead of EventSource because we POST a body.
 export async function streamExecuteWorkflow(
   payload: {
-    nodes: Array<{ id: string; label: string; model: string; systemPrompt: string; nodeType?: string }>
-    edges: Array<{ source: string; target: string }>
+    nodes: Array<{ id: string; label: string; model: string; systemPrompt: string; nodeType?: string; condition?: string }>
+    edges: Array<{ source: string; target: string; sourceHandle?: string }>
     goal: string
   },
   onEvent: (event: StreamEvent) => void

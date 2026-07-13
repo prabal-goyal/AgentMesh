@@ -2,10 +2,11 @@ import { useWorkflowStore } from '../store/workflowStore'
 import type { NodeType } from '../types/workflow'
 
 const NODE_BUTTONS: { type: NodeType; label: string; icon: string; color: string }[] = [
-  { type: 'research', label: 'Research', icon: '🔍', color: 'hover:bg-blue-50 hover:border-blue-300' },
-  { type: 'writer',   label: 'Writer',   icon: '✍️', color: 'hover:bg-green-50 hover:border-green-300' },
-  { type: 'critic',   label: 'Critic',   icon: '🔎', color: 'hover:bg-amber-50 hover:border-amber-300' },
-  { type: 'custom',   label: 'Custom',   icon: '⚙️', color: 'hover:bg-purple-50 hover:border-purple-300' },
+  { type: 'research',    label: 'Research', icon: '🔍', color: 'hover:bg-blue-50 hover:border-blue-300' },
+  { type: 'writer',      label: 'Writer',   icon: '✍️', color: 'hover:bg-green-50 hover:border-green-300' },
+  { type: 'critic',      label: 'Critic',   icon: '🔎', color: 'hover:bg-amber-50 hover:border-amber-300' },
+  { type: 'custom',      label: 'Custom',   icon: '⚙️', color: 'hover:bg-purple-50 hover:border-purple-300' },
+  { type: 'conditional', label: 'Router',   icon: '🔀', color: 'hover:bg-yellow-50 hover:border-yellow-300' },
 ]
 
 export function Toolbar() {

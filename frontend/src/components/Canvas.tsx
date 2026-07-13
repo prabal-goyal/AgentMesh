@@ -4,14 +4,16 @@ import { ResearchNode } from './nodes/ResearchNode'
 import { WriterNode } from './nodes/WriterNode'
 import { CriticNode } from './nodes/CriticNode'
 import { CustomNode } from './nodes/CustomNode'
+import { RouterNode } from './nodes/RouterNode'
 
 // Defined OUTSIDE the component — if this were inside, React Flow would
 // see a new object on every render and remount every node (causes flicker)
 const nodeTypes = {
-  research: ResearchNode,
-  writer:   WriterNode,
-  critic:   CriticNode,
-  custom:   CustomNode,
+  research:    ResearchNode,
+  writer:      WriterNode,
+  critic:      CriticNode,
+  custom:      CustomNode,
+  conditional: RouterNode,
 }
 
 export function Canvas() {

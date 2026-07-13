@@ -24,7 +24,7 @@ export function PlannerInput() {
       const plan = await generatePlan(goal)
 
       const nodes: WorkflowNode[] = plan.nodes.map((n, i) => ({
-        id: n.id,
+        id:   n.id,
         type: n.type,
         position: { x: 80 + i * 280, y: 200 },
         data: {
@@ -33,14 +33,30 @@ export function PlannerInput() {
           model:        n.model,
           systemPrompt: n.systemPrompt,
           status:       'idle',
+          // Conditional nodes carry a condition string — all others leave it undefined
+          ...(n.condition !== undefined ? { condition: n.condition } : {}),
         },
       }))
 
-      const edges: WorkflowEdge[] = plan.edges.map((e, i) => ({
-        id:     `e-${i}`,
-        source: e.source,
-        target: e.target,
-      }))
+      // Build a quick lookup so we can check if an edge's source is a Router node
+      const nodeTypeById = Object.fromEntries(plan.nodes.map((n) => [n.id, n.type]))
+
+      const edges: WorkflowEdge[] = plan.edges.map((e, i) => {
+        const isRouter = nodeTypeById[e.source] === 'conditional'
+        return {
+          id:           `e-${i}`,
+          source:       e.source,
+          target:       e.target,
+          sourceHandle: e.sourceHandle,
+          // Apply the same green/red label styling as manual connections
+          ...(isRouter && e.sourceHandle ? {
+            label:        e.sourceHandle === 'yes' ? 'Yes' : 'No',
+            style:        { stroke: e.sourceHandle === 'yes' ? '#22c55e' : '#ef4444' },
+            labelStyle:   { fill: e.sourceHandle === 'yes' ? '#16a34a' : '#dc2626', fontWeight: 600, fontSize: 11 },
+            labelBgStyle: { fill: '#fff', fillOpacity: 0.85 },
+          } : {}),
+        }
+      })
 
       setWorkflow(nodes, edges)
     } catch (err) {
