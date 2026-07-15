@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useWorkflowStore } from '../store/workflowStore'
 
 export function ResultsScreen() {
@@ -81,11 +83,37 @@ export function ResultsScreen() {
             </p>
           )}
 
-          <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded px-5 py-5 text-[14px] text-[#374151] leading-[1.8] whitespace-pre-wrap">
-            {finalOutput
-              ? finalOutput
-              : <span className="text-[#94a3b8] italic">No output generated.</span>
-            }
+          <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded px-5 py-5 text-[14px] text-[#374151] leading-[1.8]">
+            {finalOutput ? (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  h1: ({ children }) => <h1 className="text-[22px] font-bold text-[#0f172a] mt-6 mb-3 first:mt-0">{children}</h1>,
+                  h2: ({ children }) => <h2 className="text-[18px] font-bold text-[#0f172a] mt-5 mb-2">{children}</h2>,
+                  h3: ({ children }) => <h3 className="text-[15px] font-semibold text-[#0f172a] mt-4 mb-1">{children}</h3>,
+                  h4: ({ children }) => <h4 className="text-[14px] font-semibold text-[#334155] mt-3 mb-1">{children}</h4>,
+                  p:  ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                  ul: ({ children }) => <ul className="list-disc list-outside pl-5 mb-3 space-y-1">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal list-outside pl-5 mb-3 space-y-1">{children}</ol>,
+                  li: ({ children }) => <li className="leading-[1.7]">{children}</li>,
+                  strong: ({ children }) => <strong className="font-semibold text-[#0f172a]">{children}</strong>,
+                  hr: () => <hr className="my-4 border-[#e2e8f0]" />,
+                  table: ({ children }) => (
+                    <div className="overflow-x-auto mb-4">
+                      <table className="w-full text-[13px] border-collapse border border-[#e2e8f0] rounded">{children}</table>
+                    </div>
+                  ),
+                  th: ({ children }) => <th className="bg-[#f1f5f9] text-left px-3 py-2 font-semibold text-[#0f172a] border border-[#e2e8f0]">{children}</th>,
+                  td: ({ children }) => <td className="px-3 py-2 border border-[#e2e8f0] text-[#374151]">{children}</td>,
+                  code: ({ children }) => <code className="bg-[#f1f5f9] text-[#0f172a] px-1.5 py-0.5 rounded text-[13px] font-mono">{children}</code>,
+                  pre: ({ children }) => <pre className="bg-[#0f172a] text-[#e2e8f0] p-4 rounded overflow-x-auto mb-3 text-[13px] font-mono leading-[1.6]">{children}</pre>,
+                }}
+              >
+                {finalOutput}
+              </ReactMarkdown>
+            ) : (
+              <span className="text-[#94a3b8] italic">No output generated.</span>
+            )}
           </div>
         </div>
 
