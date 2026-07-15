@@ -187,8 +187,14 @@ async function runNode(
 
   // ── Phase 2: execute the tool, then stream the final answer ──
 
-  // Tell the user what's being searched — shows up live in the output panel
-  const { query } = JSON.parse(toolCall.arguments) as { query: string }
+  // Some models append stray characters after the closing } — trim before parsing
+  let parsedArgs: { query: string }
+  try {
+    parsedArgs = JSON.parse(toolCall.arguments.trim()) as { query: string }
+  } catch {
+    return fullOutput  // arguments malformed — return whatever text the model generated
+  }
+  const { query } = parsedArgs
   const searchingLabel = `🔍 Searching: "${query}"\n\n`
   fullOutput += searchingLabel
   onEvent({ type: 'node_token', nodeId: node.id, token: searchingLabel })
