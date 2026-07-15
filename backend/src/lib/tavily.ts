@@ -14,6 +14,6 @@ export async function searchWeb(query: string): Promise<string> {
   if (result.results.length === 0) return 'No search results found.'
 
   return result.results
-    .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content}`)
+    .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content.slice(0, 400)}`)
     .join('\n\n---\n\n')
 }

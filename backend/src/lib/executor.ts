@@ -95,7 +95,10 @@ function buildUserMessage(
   const context = parentIds
     .map((id) => {
       const parentLabel = nodes.find((n) => n.id === id)?.label ?? id
-      return `[${parentLabel}]:\n${outputs[id]}`
+      const output = outputs[id] ?? ''
+      // Truncate long parent outputs to keep downstream input tokens manageable
+      const truncated = output.length > 2000 ? output.slice(0, 2000) + '\n\n[truncated]' : output
+      return `[${parentLabel}]:\n${truncated}`
     })
     .join('\n\n---\n\n')
 
@@ -145,7 +148,7 @@ async function runNode(
   // ── Phase 1: streaming call, with search tool offered to research nodes ──
   const stream = await client.chat.completions.create({
     model,
-    max_tokens: 2048,
+    max_tokens: 1024,
     stream: true,
     // Only research nodes get the tool — other node types (writer, critic) don't need search
     ...(isResearch ? { tools: [SEARCH_WEB_TOOL], tool_choice: 'auto' } : {}),
@@ -225,7 +228,7 @@ async function runNode(
   // Stream the final answer — model now has the search results as context
   const finalStream = await client.chat.completions.create({
     model,
-    max_tokens: 2048,
+    max_tokens: 1024,
     stream: true,
     messages: messagesWithResult,
   })
@@ -307,7 +310,7 @@ export async function executeWorkflow(
 
     const response = await client.chat.completions.create({
       model,
-      max_tokens: 2048,
+      max_tokens: 1024,
       messages: [
         { role: 'system', content: node.systemPrompt },
         { role: 'user',   content: userMessage },
