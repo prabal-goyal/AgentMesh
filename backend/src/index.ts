@@ -12,10 +12,13 @@ if (!process.env.TAVILY_API_KEY)     console.warn('⚠️  TAVILY_API_KEY is not
 const app = express()
 const PORT = process.env.PORT || 3001
 
-// Allow any localhost port — Vite picks a different port if 5173 is in use
+const ALLOWED_ORIGINS = [
+  'https://agent-mesh-frontend-six.vercel.app',
+]
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin.startsWith('http://localhost:')) {
+    if (!origin || origin.startsWith('http://localhost:') || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true)
     } else {
       callback(new Error('Not allowed by CORS'))
