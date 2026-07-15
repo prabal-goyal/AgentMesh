@@ -7,7 +7,7 @@ const client = tavily({ apiKey: process.env.TAVILY_API_KEY ?? '' })
 // The executor injects this text into the model's conversation as a tool result.
 export async function searchWeb(query: string): Promise<string> {
   const result = await client.search(query, {
-    maxResults: 5,
+    maxResults: 3,
     searchDepth: 'basic', // 'advanced' costs more credits — 'basic' is fine for most queries
   })
 

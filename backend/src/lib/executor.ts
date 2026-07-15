@@ -288,7 +288,9 @@ export async function streamExecuteWorkflow(
     onEvent({ type: 'node_start', nodeId: node.id, label: node.label })
     const userMessage = buildUserMessage(node, nodes, edges, outputs, goal)
     const output      = await runNode(node, userMessage, onEvent)
-    outputs[node.id]  = output
+    // Strip search labels (🔍 Searching: "..."\n\n) before storing as context —
+    // they're useful on screen but wasteful when passed to downstream nodes
+    outputs[node.id]  = output.replace(/🔍 Searching: ".*?"\n\n/g, '')
     onEvent({ type: 'node_done', nodeId: node.id, output })
   }
 

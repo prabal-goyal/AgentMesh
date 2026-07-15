@@ -5,46 +5,26 @@ const router = Router()
 
 // The system prompt is the contract we give the model.
 // It must be extremely precise — the frontend depends on this exact JSON shape.
-const PLANNER_SYSTEM_PROMPT = `You are an AI workflow planner. Given a user's goal, design a workflow of AI agents to accomplish it.
+const PLANNER_SYSTEM_PROMPT = `You are an AI workflow planner. Return ONLY a raw JSON object — no markdown, no explanation.
 
-Return ONLY a JSON object — no explanation, no markdown, just raw JSON — with this exact structure:
-{
-  "nodes": [
-    {
-      "id": "1",
-      "type": "research",
-      "label": "Short Agent Name",
-      "systemPrompt": "Detailed instruction for this agent's specific role",
-      "model": "google/gemini-2.5-flash"
-    }
-  ],
-  "edges": [
-    { "source": "1", "target": "2" }
-  ]
-}
+JSON shape:
+{"nodes":[{"id":"1","type":"research","label":"Short Name","systemPrompt":"...","model":"google/gemini-2.5-flash"}],"edges":[{"source":"1","target":"2"}]}
 
-Available node types and their default models:
-- "research"     → model: google/gemini-2.5-flash   (gathers and summarizes information)
-- "writer"       → model: anthropic/claude-haiku-4-5 (creates written content)
-- "critic"       → model: openai/gpt-4o-mini         (reviews and critiques output)
-- "custom"       → model: openai/gpt-4o-mini         (general purpose agent)
-- "conditional"  → model: ""                          (routes flow based on a text condition — NO AI call)
+Node types and models:
+- "research"    → google/gemini-2.5-flash
+- "writer"      → anthropic/claude-haiku-4-5
+- "critic"      → openai/gpt-4o-mini
+- "custom"      → openai/gpt-4o-mini
+- "conditional" → model:"" (no AI call — routes on text condition)
 
-For "conditional" nodes:
-- Add a "condition" field: "contains:keyword" (YES if output includes keyword) or "not-contains:keyword" (YES if it does NOT)
-- Edges FROM a conditional node MUST have "sourceHandle": "yes" or "sourceHandle": "no"
-- Example condition node: { "id": "2", "type": "conditional", "label": "Quality Check", "condition": "contains:sufficient", "model": "", "systemPrompt": "" }
-- Example edges from it: { "source": "2", "target": "3", "sourceHandle": "yes" }, { "source": "2", "target": "4", "sourceHandle": "no" }
-- Ask the prior node to end its response with a specific keyword (e.g. "sufficient" or "insufficient") so the condition can match reliably
+Conditional nodes: add "condition":"contains:keyword" or "not-contains:keyword". Edges from them need "sourceHandle":"yes" or "no". Ask the prior node to end with the keyword so matching is reliable.
 
 Rules:
-- Use between 2 and 6 nodes
-- Node ids must be sequential strings: "1", "2", "3"...
-- Edges must form a forward-only flow — no cycles allowed
-- Edge source and target must exactly match node ids
-- Each systemPrompt must be specific to that agent's role in this workflow
-- The first node has no incoming edges; the last node(s) have no outgoing edges
-- Only use "conditional" when the goal genuinely benefits from branching — most simple workflows don't need it`
+- 2 to 4 nodes max
+- Sequential string ids: "1","2","3"
+- Forward-only edges, no cycles
+- Each systemPrompt must be role-specific and end with: "Be concise. Maximum 200 words."
+- Only use conditional when branching genuinely helps`
 
 router.post('/', async (req, res) => {
   const { goal } = req.body as { goal: string }
@@ -54,8 +34,7 @@ router.post('/', async (req, res) => {
     return
   }
 
-  // Planner uses gpt-4o — resolveModel routes it to the OpenAI API directly
-  const { client, model } = resolveModel('openai/gpt-4o')
+  const { client, model } = resolveModel('openai/gpt-4o-mini')
 
   const response = await client.chat.completions.create({
     model,
