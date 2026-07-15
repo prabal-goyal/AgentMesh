@@ -3,6 +3,9 @@ import { resolveModel } from '../lib/openrouter.js'
 
 const router = Router()
 
+// Keyed on the trimmed goal string — resets on server restart, which is fine
+const planCache = new Map<string, object>()
+
 // The system prompt is the contract we give the model.
 // It must be extremely precise — the frontend depends on this exact JSON shape.
 const PLANNER_SYSTEM_PROMPT = `You are an AI workflow planner. Return ONLY a raw JSON object — no markdown, no explanation.
@@ -34,6 +37,13 @@ router.post('/', async (req, res) => {
     return
   }
 
+  const cacheKey = goal.trim().toLowerCase()
+  const cached = planCache.get(cacheKey)
+  if (cached) {
+    res.json(cached)
+    return
+  }
+
   const { client, model } = resolveModel('openai/gpt-4o-mini')
 
   const response = await client.chat.completions.create({
@@ -50,6 +60,7 @@ router.post('/', async (req, res) => {
   const raw = response.choices[0].message.content ?? '{}'
   const plan = JSON.parse(raw)
 
+  planCache.set(cacheKey, plan)
   res.json(plan)
 })
 

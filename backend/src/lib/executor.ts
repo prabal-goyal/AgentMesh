@@ -112,10 +112,7 @@ const SEARCH_WEB_TOOL = {
   type: 'function' as const,
   function: {
     name: 'search_web',
-    description:
-      'Search the web for current information. Use this when the query requires up-to-date data, ' +
-      'recent events, current prices, live statistics, or anything that may have changed after your training cutoff. ' +
-      'Do NOT use this for timeless facts, historical information, or conceptual questions.',
+    description: 'Search the web for current or recent information not in your training data.',
     parameters: {
       type: 'object',
       properties: {
@@ -140,8 +137,14 @@ async function runNode(
   const { client, model } = resolveModel(node.model)
   const isResearch = node.nodeType === 'research'
 
+  // Anthropic models support cache_control on system prompts — cuts repeat cost to 10%
+  // Other models (OpenAI, Google) don't support this extension so we send a plain string
+  const systemContent = node.model.startsWith('anthropic/')
+    ? ([{ type: 'text', text: node.systemPrompt, cache_control: { type: 'ephemeral' } }] as any)
+    : node.systemPrompt
+
   const messages: Parameters<typeof client.chat.completions.create>[0]['messages'] = [
-    { role: 'system', content: node.systemPrompt },
+    { role: 'system', content: systemContent },
     { role: 'user',   content: userMessage },
   ]
 
