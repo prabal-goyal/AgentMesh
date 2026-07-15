@@ -1,6 +1,12 @@
 packages:
   - "frontend"
   - "backend"
-  - "shared"
 allowBuilds:
   esbuild: true
+
+# Force all packages in the monorepo to use the same @types/react version.
+# Without this, Remotion (React 18 types) and the video package (React 19 types)
+# create two different ReactNode types that TypeScript sees as incompatible.
+overrides:
+  "@types/react": "^19.2.17"
+  "@types/react-dom": "^19.2.3"

@@ -3,3 +3,9 @@ dist/
 .env
 .env.local
 *.log
+
+# Demo and design scratch files
+*.mp4
+mockups/
+video/
+shared/
