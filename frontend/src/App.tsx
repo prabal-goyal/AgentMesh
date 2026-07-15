@@ -56,11 +56,12 @@ function App() {
         href="https://tally.so/r/Xxkybe"
         target="_blank"
         rel="noreferrer"
-        className="fixed bottom-5 right-5 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full
-          text-[12px] text-[#64748b] border border-[#e2e8f0] bg-white shadow-sm
-          hover:border-[#94a3b8] hover:text-[#0f172a] hover:shadow-md transition-all"
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-2 rounded-full
+          text-[13px] font-medium text-white bg-[#0f172a] shadow-lg
+          hover:bg-[#1e293b] hover:shadow-xl hover:scale-105 transition-all"
       >
-        Report bug
+        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+        Report a bug
       </a>
     </div>
   )
