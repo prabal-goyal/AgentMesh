@@ -27,6 +27,7 @@ export function BuilderScreen() {
     sidebarMessages,
     resetExecution, setExecuting, setScreen, setRunTiming,
     setNodeStatus, appendNodeOutput,
+    recordNodeUsage, pushRunToHistory,
     addNode,
   } = useWorkflowStore()
 
@@ -80,6 +81,8 @@ export function BuilderScreen() {
           else if (event.type === 'node_token')   appendNodeOutput(event.nodeId, event.token)
           else if (event.type === 'node_done')    setNodeStatus(event.nodeId, 'done')
           else if (event.type === 'node_skipped') setNodeStatus(event.nodeId, 'skipped')
+          else if (event.type === 'run_usage')    recordNodeUsage({ nodeId: event.nodeId, label: event.nodeId, model: event.model, inputTokens: event.inputTokens, outputTokens: event.outputTokens, cost: event.cost })
+          else if (event.type === 'done')         pushRunToHistory()
           else if (event.type === 'error')        nodes.forEach((n) => setNodeStatus(n.id, 'error'))
         }
       )

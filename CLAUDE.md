@@ -2,6 +2,17 @@
 
 This is a **learning project**. The goal is to understand concepts and architecture, not just ship working code. These rules apply to every session.
 
+## Project Boundary Rules
+
+**All work stays inside `D:\AIWorkflow\`.** These rules override everything else and apply to every session without exception.
+
+1. **No files outside the project** — Never create, edit, delete, or copy files outside `D:\AIWorkflow\`. This includes `C:\Users\praba\.claude\` — do not touch it.
+2. **Skills and commands live here** — All slash commands go in `.claude/commands/`. Never copy or install them globally.
+3. **Settings stay local** — Use `.claude/settings.local.json` for MCP servers and permissions. Never modify the user-level settings file.
+4. **No global package installs** — Use `pnpm add` scoped to the project workspace only. Never `npm install -g` or `pnpm add -g`.
+5. **Git operations target this repo only** — All git commands must reference `D:/AIWorkflow`. Never run git on any other directory.
+6. **If a task requires touching something outside this folder, stop and ask first.**
+
 ## Collaboration Rules
 
 1. **Explain before code** — Before writing any file, explain what it does, why it exists in the architecture, and what concept it demonstrates. Wait for confirmation before proceeding.
@@ -76,11 +87,27 @@ API keys live only in `backend/.env` — never in frontend code.
 - ✅ **Phase 6** — Inspection + Editing — retry single node, copy output, auto-scroll, reset button
 - ✅ **Phase 7** — Tavily web search — tool use loop, streaming tool call detection, Research nodes only
 - ✅ **Phase 8** — Conditional / Router Node — yes/no branching, dynamic DAG pruning, skipped node status on canvas, AI Planner aware of Router nodes
-- 🔲 **Phase 9** — Parallel Execution — wave-based topo sort, Promise.allSettled per wave, concurrent SSE events, multiple nodes running simultaneously ← **NEXT**
-- 🔲 **Phase 10** — Run History + Cost Tracker — run_usage SSE event, token counts from API response, Zustand history stack, cost per model per run, history sidebar
-- 🔲 **Phase 11** — Save / Load + Templates — Blob + URL.createObjectURL export, FileReader import, drag-drop JSON, 3 built-in templates (blog writer, research report, code reviewer)
-- 🔲 **Phase 12** — Action Nodes (Connectors) — non-LLM nodes, Slack webhook, generic HTTP webhook, GitHub issue creation, executor routes by nodeType
+- ✅ **Phase 9** — Parallel Execution — wave-based topo sort, Promise.allSettled per wave, concurrent SSE events, multiple nodes running simultaneously
+- ✅ **Phase 10** — Run History + Cost Tracker — run_usage SSE event, token counts from API response, Zustand history stack, cost per model per run, history sidebar
+- 🔲 **Phase 11** — Save / Load + Templates — export workflow to file, import from file, 3 built-in templates (blog writer, research report, code reviewer); also fix results screen to show all node outputs not just the final one ← **NEXT**
+- 🔲 **Phase 12** — Variable Injection — `{{topic}}`, `{{tone}}` placeholders in prompts, pre-run input form, no editing nodes every time
+- 🔲 **Phase 13** — File Upload Node — drop in PDF/text file, content injected as output into downstream nodes
+- 🔲 **Phase 14** — Auto-Retry — failed node retries once automatically before marking as error; no silent total failures
+- 🔲 **Phase 15** — Authentication — sign up / log in, each user owns their saved workflows and run history
+- 🔲 **Phase 16** — Share via Link — encode workflow in a shareable URL; recipient can run it but not edit it
+
+**Deferred (revisit after user testing):**
+- Human-in-the-Loop — pause mid-run for user review (power feature; users need comfortable baseline first)
+- Fallback Node — route to a backup node after retry failure (advanced; build after auto-retry lands)
+- Email Output Node — send final output to an inbox (needs email service; no user has asked for it yet)
+- Scheduled Runs — run a workflow on a timer (most advanced; needs auth + proven user value first)
 
 ## Session Resume Instructions
 
 When resuming: greet the user, confirm which phase is next (shown above), briefly recap what was built last, and ask if they're ready to continue or have questions first. Do NOT restart from scratch or re-explain Phase 1.
+
+## Deployment
+
+- **Backend**: Render — https://agentmesh-va9b.onrender.com
+- **Frontend**: Vercel — https://agent-mesh-frontend-six.vercel.app
+- **GitHub**: https://github.com/prabal-goyal/AgentMesh

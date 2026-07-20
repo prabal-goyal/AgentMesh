@@ -16,11 +16,10 @@ export interface EdgeInput {
   sourceHandle?: string  // 'yes' or 'no' for edges leaving a conditional node
 }
 
-// Kahn's algorithm — returns nodes in an order where every node
-// appears AFTER all the nodes that point to it
-function topoSort(nodes: NodeInput[], edges: EdgeInput[]): NodeInput[] {
+// Wave-based Kahn's algorithm — groups nodes into waves where every node
+// in a wave can run in parallel (they only depend on nodes from earlier waves)
+function topoWaves(nodes: NodeInput[], edges: EdgeInput[]): NodeInput[][] {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-
   const inDegree = new Map(nodes.map((n) => [n.id, 0]))
   const adj = new Map<string, string[]>(nodes.map((n) => [n.id, []]))
 
@@ -29,21 +28,25 @@ function topoSort(nodes: NodeInput[], edges: EdgeInput[]): NodeInput[] {
     inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1)
   }
 
-  const queue = nodes.filter((n) => inDegree.get(n.id) === 0)
-  const sorted: NodeInput[] = []
+  const waves: NodeInput[][] = []
+  let wave = nodes.filter((n) => inDegree.get(n.id) === 0)
 
-  while (queue.length > 0) {
-    const node = queue.shift()!
-    sorted.push(node)
+  while (wave.length > 0) {
+    waves.push(wave)
+    const next: NodeInput[] = []
 
-    for (const childId of adj.get(node.id) ?? []) {
-      const remaining = (inDegree.get(childId) ?? 0) - 1
-      inDegree.set(childId, remaining)
-      if (remaining === 0) queue.push(nodeMap.get(childId)!)
+    for (const node of wave) {
+      for (const childId of adj.get(node.id) ?? []) {
+        const remaining = (inDegree.get(childId) ?? 0) - 1
+        inDegree.set(childId, remaining)
+        if (remaining === 0) next.push(nodeMap.get(childId)!)
+      }
     }
+
+    wave = next
   }
 
-  return sorted
+  return waves
 }
 
 function getParentIds(nodeId: string, edges: EdgeInput[]): string[] {
@@ -76,8 +79,22 @@ export type StreamEvent =
   | { type: 'node_token';   nodeId: string; token: string }
   | { type: 'node_done';    nodeId: string; output: string }
   | { type: 'node_skipped'; nodeId: string }
+  | { type: 'run_usage';    nodeId: string; model: string; inputTokens: number; outputTokens: number; cost: number }
   | { type: 'done' }
   | { type: 'error'; message: string }
+
+// Prices in USD per 1 million tokens (input / output)
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  'google/gemini-2.5-flash':    { input: 0.15, output: 0.60 },
+  'anthropic/claude-haiku-4-5': { input: 0.80, output: 4.00 },
+  'openai/gpt-4o-mini':         { input: 0.15, output: 0.60 },
+  'openai/gpt-4o':              { input: 2.50, output: 10.00 },
+}
+
+function calcCost(model: string, inputTokens: number, outputTokens: number): number {
+  const p = MODEL_PRICING[model] ?? { input: 0, output: 0 }
+  return (inputTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output
+}
 
 function buildUserMessage(
   node: NodeInput,
@@ -126,14 +143,19 @@ const SEARCH_WEB_TOOL = {
   },
 }
 
+interface NodeResult {
+  output: string
+  inputTokens: number
+  outputTokens: number
+}
+
 // Runs a single node with streaming, offering the search_web tool for research nodes.
-// Returns the full output text. Calls onEvent for every token so the SSE layer can
-// push updates to the frontend in real time.
+// Returns output text plus token counts for cost tracking.
 async function runNode(
   node: NodeInput,
   userMessage: string,
   onEvent: (event: StreamEvent) => void
-): Promise<string> {
+): Promise<NodeResult> {
   const { client, model } = resolveModel(node.model)
   const isResearch = node.nodeType === 'research'
 
@@ -153,19 +175,29 @@ async function runNode(
     model,
     max_tokens: 1024,
     stream: true,
-    // Only research nodes get the tool — other node types (writer, critic) don't need search
+    stream_options: { include_usage: true },  // ask provider to return token counts in last chunk
     ...(isResearch ? { tools: [SEARCH_WEB_TOOL], tool_choice: 'auto' } : {}),
     messages,
   })
 
-  let fullOutput = ''
+  let fullOutput   = ''
   let finishReason = ''
+  let inputTokens  = 0
+  let outputTokens = 0
 
   // Tool call arguments arrive as tiny deltas — we accumulate them here
   const toolCall = { id: '', name: '', arguments: '' }
 
   for await (const chunk of stream) {
+    // Usage arrives in a final chunk with choices:[] — capture then skip normal processing
+    if (chunk.usage) {
+      inputTokens  += chunk.usage.prompt_tokens
+      outputTokens += chunk.usage.completion_tokens
+    }
+
     const choice = chunk.choices[0]
+    if (!choice) continue
+
     if (choice.finish_reason) finishReason = choice.finish_reason
 
     // Path A: model is writing a normal answer — emit the token
@@ -187,8 +219,7 @@ async function runNode(
 
   // ── Did the model decide to search? ──
   if (finishReason !== 'tool_calls') {
-    // No tool use — stream finished normally, we're done
-    return fullOutput
+    return { output: fullOutput, inputTokens, outputTokens }
   }
 
   // ── Phase 2: execute the tool, then stream the final answer ──
@@ -198,7 +229,7 @@ async function runNode(
   try {
     parsedArgs = JSON.parse(toolCall.arguments.trim()) as { query: string }
   } catch {
-    return fullOutput  // arguments malformed — return whatever text the model generated
+    return { output: fullOutput, inputTokens, outputTokens }  // arguments malformed — return whatever text the model generated
   }
   const { query } = parsedArgs
   const searchingLabel = `🔍 Searching: "${query}"\n\n`
@@ -233,10 +264,16 @@ async function runNode(
     model,
     max_tokens: 1024,
     stream: true,
+    stream_options: { include_usage: true },
     messages: messagesWithResult,
   })
 
   for await (const chunk of finalStream) {
+    if (chunk.usage) {
+      inputTokens  += chunk.usage.prompt_tokens
+      outputTokens += chunk.usage.completion_tokens
+    }
+
     const token = chunk.choices[0]?.delta?.content ?? ''
     if (token) {
       fullOutput += token
@@ -244,57 +281,67 @@ async function runNode(
     }
   }
 
-  return fullOutput
+  return { output: fullOutput, inputTokens, outputTokens }
 }
 
-// Streaming version — calls onEvent for each token as it arrives.
-// The route layer formats these events as SSE and writes them to the response.
+// Streaming version — runs nodes in parallel waves.
+// All nodes in a wave have no dependencies on each other, only on previous waves,
+// so they can safely fire at the same time via Promise.allSettled.
 export async function streamExecuteWorkflow(
   nodes: NodeInput[],
   edges: EdgeInput[],
   goal: string,
   onEvent: (event: StreamEvent) => void
 ): Promise<void> {
-  const sorted  = topoSort(nodes, edges)
+  const waves   = topoWaves(nodes, edges)
   const outputs: Record<string, string> = {}
   const skipped = new Set<string>()
 
-  for (const node of sorted) {
-    // Cascade: skip nodes whose entire parent chain was pruned
-    if (shouldSkip(node.id, edges, skipped)) {
-      skipped.add(node.id)
-      onEvent({ type: 'node_skipped', nodeId: node.id })
-      continue
-    }
+  for (const wave of waves) {
+    // Promise.allSettled — waits for every node in the wave, even if some fail.
+    // Unlike Promise.all, a single node crash does not cancel the others.
+    await Promise.allSettled(
+      wave.map(async (node) => {
+        if (shouldSkip(node.id, edges, skipped)) {
+          skipped.add(node.id)
+          onEvent({ type: 'node_skipped', nodeId: node.id })
+          return
+        }
 
-    // Conditional nodes don't call an AI — they evaluate a condition and prune a branch
-    if (node.nodeType === 'conditional') {
-      onEvent({ type: 'node_start', nodeId: node.id, label: node.label })
+        if (node.nodeType === 'conditional') {
+          onEvent({ type: 'node_start', nodeId: node.id, label: node.label })
 
-      const parentIds    = getParentIds(node.id, edges)
-      const parentOutput = parentIds.map((id) => outputs[id] ?? '').join('\n')
-      const conditionMet = evaluateCondition(node.condition ?? '', parentOutput)
-      const result       = conditionMet ? 'yes' : 'no'
-      const prunedHandle = conditionMet ? 'no'  : 'yes'
+          const parentIds    = getParentIds(node.id, edges)
+          const parentOutput = parentIds.map((id) => outputs[id] ?? '').join('\n')
+          const conditionMet = evaluateCondition(node.condition ?? '', parentOutput)
+          const result       = conditionMet ? 'yes' : 'no'
+          const prunedHandle = conditionMet ? 'no'  : 'yes'
 
-      // Any edge leaving via the pruned handle targets a node we should skip
-      edges
-        .filter((e) => e.source === node.id && e.sourceHandle === prunedHandle)
-        .forEach((e) => skipped.add(e.target))
+          edges
+            .filter((e) => e.source === node.id && e.sourceHandle === prunedHandle)
+            .forEach((e) => skipped.add(e.target))
 
-      outputs[node.id] = result
-      onEvent({ type: 'node_done', nodeId: node.id, output: `Branch taken: ${result.toUpperCase()}` })
-      continue
-    }
+          outputs[node.id] = result
+          onEvent({ type: 'node_done', nodeId: node.id, output: `Branch taken: ${result.toUpperCase()}` })
+          return
+        }
 
-    // Regular AI node
-    onEvent({ type: 'node_start', nodeId: node.id, label: node.label })
-    const userMessage = buildUserMessage(node, nodes, edges, outputs, goal)
-    const output      = await runNode(node, userMessage, onEvent)
-    // Strip search labels (🔍 Searching: "..."\n\n) before storing as context —
-    // they're useful on screen but wasteful when passed to downstream nodes
-    outputs[node.id]  = output.replace(/🔍 Searching: ".*?"\n\n/g, '')
-    onEvent({ type: 'node_done', nodeId: node.id, output })
+        // Regular AI node
+        onEvent({ type: 'node_start', nodeId: node.id, label: node.label })
+        const userMessage = buildUserMessage(node, nodes, edges, outputs, goal)
+
+        try {
+          const { output, inputTokens, outputTokens } = await runNode(node, userMessage, onEvent)
+          const cost = calcCost(node.model, inputTokens, outputTokens)
+          outputs[node.id] = output.replace(/🔍 Searching: ".*?"\n\n/g, '')
+          onEvent({ type: 'node_done',  nodeId: node.id, output })
+          onEvent({ type: 'run_usage',  nodeId: node.id, model: node.model, inputTokens, outputTokens, cost })
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          onEvent({ type: 'error', message: `[${node.label}] ${message}` })
+        }
+      })
+    )
   }
 
   onEvent({ type: 'done' })
@@ -306,7 +353,7 @@ export async function executeWorkflow(
   edges: EdgeInput[],
   goal: string
 ): Promise<Record<string, string>> {
-  const sorted  = topoSort(nodes, edges)
+  const sorted  = topoWaves(nodes, edges).flat()
   const outputs: Record<string, string> = {}
 
   for (const node of sorted) {

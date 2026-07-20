@@ -3,12 +3,24 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useWorkflowStore } from '../store/workflowStore'
 
+function formatCost(cost: number): string {
+  if (cost === 0) return '$0.00'
+  if (cost < 0.0001) return '<$0.0001'
+  return `$${cost.toFixed(4)}`
+}
+
 export function ResultsScreen() {
   const {
     nodes, goal,
     runStartTime, runEndTime,
+    currentRunUsage, history,
     setScreen, resetExecution, setWorkflow,
   } = useWorkflowStore()
+
+  const usageList          = Object.values(currentRunUsage)
+  const totalCost          = usageList.reduce((s, u) => s + u.cost, 0)
+  const totalInputTokens   = usageList.reduce((s, u) => s + u.inputTokens, 0)
+  const totalOutputTokens  = usageList.reduce((s, u) => s + u.outputTokens, 0)
 
   const [copied, setCopied] = useState(false)
 
@@ -128,6 +140,9 @@ export function ResultsScreen() {
               { k: 'Total time', v: elapsedSeconds !== null ? `${elapsedSeconds}s` : '—' },
               { k: 'Nodes run',  v: `${totalDone} / ${nodes.length}` },
               { k: 'Skipped',    v: skippedCount > 0 ? `${skippedCount}` : 'none' },
+              { k: 'Total cost', v: formatCost(totalCost) },
+              { k: 'Tokens in',  v: totalInputTokens > 0 ? totalInputTokens.toLocaleString() : '—' },
+              { k: 'Tokens out', v: totalOutputTokens > 0 ? totalOutputTokens.toLocaleString() : '—' },
             ].map(({ k, v }) => (
               <div key={k} className="flex justify-between items-center py-2 border-b border-[#f1f5f9] last:border-0 text-[13px]">
                 <span className="text-[#94a3b8]">{k}</span>
@@ -135,6 +150,46 @@ export function ResultsScreen() {
               </div>
             ))}
           </div>
+
+          {/* Per-node cost breakdown */}
+          {usageList.length > 0 && (
+            <div className="bg-white border border-[#e2e8f0] rounded p-4">
+              <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-[.07em] mb-3">
+                Cost Breakdown
+              </div>
+              {usageList.map((u) => (
+                <div key={u.nodeId} className="py-2 border-b border-[#f1f5f9] last:border-0">
+                  <div className="flex justify-between items-center text-[13px]">
+                    <span className="text-[#0f172a] font-medium truncate max-w-[140px]">{u.label}</span>
+                    <span className="text-[#0f172a] font-semibold">{formatCost(u.cost)}</span>
+                  </div>
+                  <div className="text-[11px] text-[#94a3b8] mt-0.5">
+                    {u.inputTokens.toLocaleString()} in · {u.outputTokens.toLocaleString()} out
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Session history */}
+          {history.length > 0 && (
+            <div className="bg-white border border-[#e2e8f0] rounded p-4">
+              <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-[.07em] mb-3">
+                Session History
+              </div>
+              {history.map((run) => (
+                <div key={run.id} className="py-2 border-b border-[#f1f5f9] last:border-0">
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-[#374151] truncate max-w-[160px]">{run.goal}</span>
+                    <span className="text-[#64748b] font-medium">{formatCost(run.totalCost)}</span>
+                  </div>
+                  <div className="text-[11px] text-[#94a3b8] mt-0.5">
+                    {run.nodes.length} node{run.nodes.length !== 1 ? 's' : ''} · {new Date(run.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Action buttons */}
           <button

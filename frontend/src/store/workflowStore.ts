@@ -13,6 +13,26 @@ import type { WorkflowNode, WorkflowEdge, WorkflowNodeData, NodeType, NodeStatus
 // The app is a screen-based SPA: each string maps to a full-page view
 export type AppScreen = 'home' | 'chat' | 'generating' | 'builder' | 'running' | 'results'
 
+// ── Cost tracking ──────────────────────────────────────────────────────────
+export interface NodeUsage {
+  nodeId:       string
+  label:        string
+  model:        string
+  inputTokens:  number
+  outputTokens: number
+  cost:         number
+}
+
+export interface RunRecord {
+  id:                string
+  goal:              string
+  timestamp:         number
+  nodes:             NodeUsage[]
+  totalCost:         number
+  totalInputTokens:  number
+  totalOutputTokens: number
+}
+
 // ── Sidebar messages (AI Director conversation) ────────────────────────────
 export interface SidebarMessage {
   id: string
@@ -63,6 +83,10 @@ interface WorkflowState {
   runStartTime: number | null
   runEndTime:   number | null
 
+  // ── Cost tracking ──
+  currentRunUsage: Record<string, NodeUsage>  // keyed by nodeId, built during a run
+  history:         RunRecord[]                 // completed runs this session (max 10)
+
   // ── React Flow handlers ──
   onNodesChange: (changes: NodeChange<WorkflowNode>[]) => void
   onEdgesChange: (changes: EdgeChange[]) => void
@@ -92,6 +116,10 @@ interface WorkflowState {
 
   // ── Timing actions ──
   setRunTiming: (start: number | null, end: number | null) => void
+
+  // ── Cost tracking actions ──
+  recordNodeUsage:  (usage: NodeUsage) => void
+  pushRunToHistory: () => void
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
@@ -106,6 +134,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   sidebarMessages: [],
   runStartTime: null,
   runEndTime:   null,
+  currentRunUsage: {},
+  history:         [],
 
   // React Flow calls these when the user drags, deletes, or resizes nodes/edges
   onNodesChange: (changes) =>
@@ -200,6 +230,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   resetExecution: () =>
     set({
+      currentRunUsage: {},
       nodes: get().nodes.map((n) => ({
         ...n,
         data: { ...n.data, status: 'idle', output: undefined },
@@ -222,4 +253,29 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   // ── Timing ──
   setRunTiming: (start, end) => set({ runStartTime: start, runEndTime: end }),
+
+  // ── Cost tracking ──
+  recordNodeUsage: (usage) =>
+    set({ currentRunUsage: { ...get().currentRunUsage, [usage.nodeId]: usage } }),
+
+  pushRunToHistory: () => {
+    const { goal, currentRunUsage, nodes, history } = get()
+    const usageList = Object.values(currentRunUsage)
+    // Attach labels from canvas nodes to each usage entry
+    const enriched = usageList.map((u) => ({
+      ...u,
+      label: nodes.find((n) => n.id === u.nodeId)?.data.label ?? u.label,
+    }))
+    const record: RunRecord = {
+      id:                crypto.randomUUID(),
+      goal:              goal || 'Untitled run',
+      timestamp:         Date.now(),
+      nodes:             enriched,
+      totalCost:         enriched.reduce((s, u) => s + u.cost, 0),
+      totalInputTokens:  enriched.reduce((s, u) => s + u.inputTokens, 0),
+      totalOutputTokens: enriched.reduce((s, u) => s + u.outputTokens, 0),
+    }
+    // Keep last 10 runs — oldest drops off the front
+    set({ history: [record, ...history].slice(0, 10) })
+  },
 }))

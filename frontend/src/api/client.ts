@@ -54,6 +54,7 @@ export type StreamEvent =
   | { type: 'node_token';   nodeId: string; token: string }
   | { type: 'node_done';    nodeId: string; output: string }
   | { type: 'node_skipped'; nodeId: string }
+  | { type: 'run_usage';    nodeId: string; model: string; inputTokens: number; outputTokens: number; cost: number }
   | { type: 'done' }
   | { type: 'error'; message: string }
 
