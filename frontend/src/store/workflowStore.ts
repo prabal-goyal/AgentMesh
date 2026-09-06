@@ -8,6 +8,30 @@ import {
   type Connection,
 } from '@xyflow/react'
 import type { WorkflowNode, WorkflowEdge, WorkflowNodeData, NodeType, NodeStatus } from '../types/workflow'
+import { signup as apiSignup, login as apiLogin, type AuthUser } from '../api/auth'
+import {
+  saveWorkflow as apiSaveWorkflow,
+  listWorkflows as apiListWorkflows,
+  getWorkflow as apiGetWorkflow,
+  deleteWorkflow as apiDeleteWorkflow,
+  type WorkflowSummary,
+} from '../api/workflows'
+
+// Both token and user are written together as one JSON blob so a page reload
+// can restore "logged in as X" immediately, without an extra network call to
+// re-fetch who the token belongs to.
+const AUTH_STORAGE_KEY = 'agentmesh_auth'
+
+function loadStoredAuth(): { token: string | null; user: AuthUser | null } {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+    if (!raw) return { token: null, user: null }
+    return JSON.parse(raw)
+  } catch {
+    // Corrupted or blocked storage — fall back to logged-out rather than crash
+    return { token: null, user: null }
+  }
+}
 
 // ── Screen navigation ──────────────────────────────────────────────────────
 // The app is a screen-based SPA: each string maps to a full-page view
@@ -66,12 +90,25 @@ const NODE_LABEL_DEFAULTS: Record<NodeType, string> = {
 }
 
 interface WorkflowState {
+  // ── Auth ──
+  token: string | null
+  user:  AuthUser | null
+  authError: string | null
+
   // ── Canvas state ──
   nodes: WorkflowNode[]
   edges: WorkflowEdge[]
   selectedNodeId: string | null
   goal: string
   executing: boolean
+
+  // Separate from 'goal' — a saved workflow's name is a different concept
+  // from the AI Planner prompt that may (or may not) have generated it
+  currentWorkflowName: string | null
+
+  // ── Saved workflows (Neon, scoped to the logged-in user) ──
+  savedWorkflows: WorkflowSummary[]
+  savedWorkflowsLoading: boolean
 
   // ── Screen navigation ──
   screen: AppScreen
@@ -110,6 +147,18 @@ interface WorkflowState {
   // ── Navigation actions ──
   setScreen: (screen: AppScreen) => void
 
+  // ── Auth actions ──
+  signup:      (email: string, password: string) => Promise<void>
+  login:       (email: string, password: string) => Promise<void>
+  logout:      () => void
+  clearAuthError: () => void
+
+  // ── Saved workflow actions ──
+  refreshSavedWorkflows: () => Promise<void>
+  saveCurrentWorkflow:   (name: string) => Promise<void>
+  loadSavedWorkflow:     (id: string) => Promise<void>
+  deleteSavedWorkflow:   (id: string) => Promise<void>
+
   // ── Sidebar actions ──
   addSidebarMessage:   (msg: Omit<SidebarMessage, 'id'>) => void
   clearSidebarMessages: () => void
@@ -123,12 +172,19 @@ interface WorkflowState {
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
+  ...loadStoredAuth(),
+  authError: null,
+
   // Canvas starts empty — the Home screen drives workflow creation
   nodes: [],
   edges: [],
   selectedNodeId: null,
   goal: '',
   executing: false,
+  currentWorkflowName: null,
+
+  savedWorkflows: [],
+  savedWorkflowsLoading: false,
 
   screen: 'home',
   sidebarMessages: [],
@@ -199,8 +255,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   selectNode: (id) => set({ selectedNodeId: id }),
 
-  // Replaces the entire canvas with a new set of nodes and edges
-  setWorkflow: (nodes, edges) => set({ nodes, edges, selectedNodeId: null }),
+  // Replaces the entire canvas with a new set of nodes and edges. Also clears
+  // currentWorkflowName — whatever was previously loaded/saved no longer
+  // matches what's on the canvas now. loadSavedWorkflow sets it back
+  // immediately after, since that's the one case where it should carry over.
+  setWorkflow: (nodes, edges) => set({ nodes, edges, selectedNodeId: null, currentWorkflowName: null }),
 
   setGoal:      (goal)      => set({ goal }),
   setExecuting: (executing) => set({ executing }),
@@ -240,6 +299,38 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   // ── Navigation ──
   setScreen: (screen) => set({ screen }),
 
+  // ── Auth ──
+  signup: async (email, password) => {
+    set({ authError: null })
+    try {
+      const { token, user } = await apiSignup(email, password)
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user }))
+      set({ token, user })
+    } catch (err) {
+      set({ authError: err instanceof Error ? err.message : 'Signup failed' })
+      throw err
+    }
+  },
+
+  login: async (email, password) => {
+    set({ authError: null })
+    try {
+      const { token, user } = await apiLogin(email, password)
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user }))
+      set({ token, user })
+    } catch (err) {
+      set({ authError: err instanceof Error ? err.message : 'Login failed' })
+      throw err
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+    set({ token: null, user: null })
+  },
+
+  clearAuthError: () => set({ authError: null }),
+
   // ── Sidebar ──
   addSidebarMessage: (msg) =>
     set({
@@ -277,5 +368,47 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }
     // Keep last 10 runs — oldest drops off the front
     set({ history: [record, ...history].slice(0, 10) })
+  },
+
+  // ── Saved workflows ──
+  refreshSavedWorkflows: async () => {
+    const { token } = get()
+    if (!token) return
+    set({ savedWorkflowsLoading: true })
+    try {
+      const savedWorkflows = await apiListWorkflows(token)
+      set({ savedWorkflows })
+    } finally {
+      set({ savedWorkflowsLoading: false })
+    }
+  },
+
+  saveCurrentWorkflow: async (name) => {
+    const { token, nodes, edges } = get()
+    if (!token) return
+    await apiSaveWorkflow(token, name, { nodes, edges })
+    set({ currentWorkflowName: name })
+    await get().refreshSavedWorkflows()
+  },
+
+  loadSavedWorkflow: async (id) => {
+    const { token } = get()
+    if (!token) return
+    const workflow = await apiGetWorkflow(token, id)
+    set({
+      nodes:               workflow.graph.nodes,
+      edges:               workflow.graph.edges,
+      selectedNodeId:      null,
+      currentWorkflowName: workflow.name,
+      goal:                '',
+      screen:              'builder',
+    })
+  },
+
+  deleteSavedWorkflow: async (id) => {
+    const { token } = get()
+    if (!token) return
+    await apiDeleteWorkflow(token, id)
+    await get().refreshSavedWorkflows()
   },
 }))

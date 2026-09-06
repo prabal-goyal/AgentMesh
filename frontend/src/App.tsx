@@ -1,5 +1,6 @@
 import { useState, useEffect }  from 'react'
 import { useWorkflowStore, type AppScreen } from './store/workflowStore'
+import { AuthScreen }       from './screens/AuthScreen'
 import { HomeScreen }       from './screens/HomeScreen'
 import { ChatScreen }       from './screens/ChatScreen'
 import { GeneratingScreen } from './screens/GeneratingScreen'
@@ -11,6 +12,7 @@ const isBuilderGroup = (s: AppScreen) => s === 'builder' || s === 'running'
 
 function App() {
   const screen = useWorkflowStore((s) => s.screen)
+  const user   = useWorkflowStore((s) => s.user)
 
   // 'displayed' is what's actually rendered — it lags one tick behind 'screen'
   // so we can fade the old content out before swapping in the new content
@@ -18,6 +20,9 @@ function App() {
   const [opacity,   setOpacity]   = useState(1)
 
   useEffect(() => {
+    // Nothing to crossfade while logged out — AuthScreen is rendered instead
+    // of this effect's screens below, so there's no 'displayed' to update.
+    if (!user) return
     if (screen === displayed) return
 
     // Builder ↔ Running use the same component — skip the crossfade
@@ -34,7 +39,11 @@ function App() {
       setOpacity(1)
     }, 210)
     return () => clearTimeout(t)
-  }, [screen, displayed])
+  }, [screen, displayed, user])
+
+  // Gate the whole app behind auth — nothing above depends on render order
+  // (the hooks above already ran), so it's safe to bail out here.
+  if (!user) return <AuthScreen />
 
   return (
     <div

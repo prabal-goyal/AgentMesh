@@ -3,6 +3,7 @@ import { useWorkflowStore }      from '../store/workflowStore'
 import { streamExecuteWorkflow } from '../api/client'
 import { Canvas }                from '../components/Canvas'
 import { NodeConfigPanel }       from '../components/NodeConfigPanel'
+import { SaveWorkflowButton }    from '../components/SaveWorkflowButton'
 import type { NodeType }         from '../types/workflow'
 
 const NODE_TYPES: { type: NodeType; label: string }[] = [
@@ -24,7 +25,7 @@ const STATUS_CFG = {
 export function BuilderScreen() {
   const {
     nodes, edges, goal, screen, executing, selectedNodeId,
-    sidebarMessages,
+    sidebarMessages, currentWorkflowName,
     resetExecution, setExecuting, setScreen, setRunTiming,
     setNodeStatus, appendNodeOutput,
     recordNodeUsage, pushRunToHistory,
@@ -45,9 +46,9 @@ export function BuilderScreen() {
   // Only nodes that have left idle state — shown in Live Output
   const activeNodes = nodes.filter((n) => n.data.status !== 'idle' || n.data.output)
 
-  const flowName = goal
+  const flowName = currentWorkflowName || (goal
     ? (goal.length > 44 ? goal.slice(0, 44) + '…' : goal)
-    : 'Custom Workflow'
+    : 'Custom Workflow')
 
   async function handleRun() {
     if (!canRun) return
@@ -126,6 +127,8 @@ export function BuilderScreen() {
           className="ml-auto px-4 py-1.5 rounded text-[13px] font-semibold bg-[#0f172a] text-white hover:bg-[#1e293b] disabled:opacity-40 transition-colors">
           Run Workflow
         </button>
+
+        <SaveWorkflowButton />
 
         <button
           onClick={() => setScreen('home')}

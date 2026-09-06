@@ -1,5 +1,6 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useWorkflowStore } from '../store/workflowStore'
+import { MyWorkflowsPanel } from '../components/MyWorkflowsPanel'
 
 const EXAMPLES = [
   { label: 'Research top AI tools in 2025 and create a comparison report',       short: 'AI tools research report' },
@@ -14,7 +15,20 @@ export function HomeScreen() {
   const setScreen            = useWorkflowStore((s) => s.setScreen)
   const setWorkflow          = useWorkflowStore((s) => s.setWorkflow)
   const clearSidebarMessages = useWorkflowStore((s) => s.clearSidebarMessages)
+  const user                 = useWorkflowStore((s) => s.user)
+  const logout                = useWorkflowStore((s) => s.logout)
+  const savedWorkflows        = useWorkflowStore((s) => s.savedWorkflows)
+  const refreshSavedWorkflows = useWorkflowStore((s) => s.refreshSavedWorkflows)
+  const loadSavedWorkflow     = useWorkflowStore((s) => s.loadSavedWorkflow)
   const textareaRef          = useRef<HTMLTextAreaElement>(null)
+
+  const [showWorkflowsPanel, setShowWorkflowsPanel] = useState(false)
+
+  // Loads the list once on mount so the Recent strip has data without
+  // requiring the user to open the My Workflows panel first
+  useEffect(() => {
+    refreshSavedWorkflows()
+  }, [refreshSavedWorkflows])
 
   function handleBuild() {
     if (!goal.trim()) return
@@ -61,6 +75,19 @@ export function HomeScreen() {
             className="ml-2 px-4 py-1.5 rounded text-[13px] font-medium bg-[#0f172a] text-white hover:bg-[#1e293b] transition-colors">
             Open Builder
           </button>
+
+          {/* HomeScreen only ever renders while logged in (see App.tsx's auth
+              gate), so user is never null here in practice — the check below
+              is just to satisfy the AuthUser | null type. */}
+          {user && (
+            <div className="flex items-center gap-2 ml-2 pl-3 border-l border-[#e2e8f0]">
+              <span className="text-[13px] text-[#64748b]">{user.email}</span>
+              <button onClick={logout}
+                className="px-3 py-1.5 rounded text-[13px] text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#0f172a] transition-colors">
+                Log out
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -127,7 +154,7 @@ export function HomeScreen() {
           {[
             { label: 'Open Canvas',      onClick: handleCustomBuild },
             { label: 'Browse Templates', onClick: undefined },
-            { label: 'My Workflows',     onClick: undefined },
+            { label: 'My Workflows',     onClick: () => setShowWorkflowsPanel(true) },
           ].map(({ label, onClick }) => (
             <button
               key={label}
@@ -141,19 +168,25 @@ export function HomeScreen() {
       </div>
 
       {/* ── Recent (bottom) ── */}
-      <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-3">
-        <p className="text-[11px] text-[#94a3b8] uppercase tracking-[.08em] font-medium">Recent</p>
-        <div className="flex gap-2">
-          {['YC Startup Research', 'AI Tools Report', 'Blog: FinTech 2025'].map((name) => (
-            <div key={name}
-              className="flex items-center gap-2 px-3 py-1.5 rounded text-[12px] border border-[#e2e8f0] text-[#64748b] cursor-pointer
-                hover:text-[#0f172a] hover:border-[#94a3b8] hover:bg-[#f8fafc] transition-all">
-              <div className="w-[5px] h-[5px] rounded-full bg-green-500 flex-shrink-0" />
-              {name}
-            </div>
-          ))}
+      {savedWorkflows.length > 0 && (
+        <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-3">
+          <p className="text-[11px] text-[#94a3b8] uppercase tracking-[.08em] font-medium">Recent</p>
+          <div className="flex gap-2">
+            {savedWorkflows.slice(0, 3).map((wf) => (
+              <button key={wf.id} onClick={() => loadSavedWorkflow(wf.id)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded text-[12px] border border-[#e2e8f0] text-[#64748b] cursor-pointer
+                  hover:text-[#0f172a] hover:border-[#94a3b8] hover:bg-[#f8fafc] transition-all">
+                <div className="w-[5px] h-[5px] rounded-full bg-green-500 flex-shrink-0" />
+                {wf.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {showWorkflowsPanel && (
+        <MyWorkflowsPanel onClose={() => setShowWorkflowsPanel(false)} />
+      )}
     </div>
   )
 }
