@@ -29,6 +29,15 @@ This is a **learning project**. The goal is to understand concepts and architect
 
 7. **Stop and ask anytime** — If something feels like a black box, unpack it fully before continuing. No skipping.
 
+## Answer-Quality Rules
+
+Adapted from `multica-ai/andrej-karpathy-skills` — a third-party distillation of an Andrej Karpathy X post on common LLM coding mistakes, not his verbatim words. Kept only the parts that add something beyond the Collaboration Rules above.
+
+1. **Present interpretations, don't pick silently** — When a request has multiple reasonable readings, list them and ask which one, instead of quietly choosing.
+2. **The overcomplication gut-check** — Before calling code done, ask "would a senior engineer call this overcomplicated?" No abstractions, flexibility, or config for a single call site that wasn't asked for.
+3. **Surgical diffs** — Don't reformat or "improve" adjacent code/comments while making a change. Match existing style even when you'd write it differently. Mention unrelated dead code you notice — don't delete it. Only remove imports/variables that your own change made unused.
+4. **State a step → verify plan for multi-step work** — Before executing, write out steps with what verifies each one (build/lint passes, user confirms in browser, endpoint returns expected response), so the goal is checkable rather than vague.
+
 ## User Background
 
 - Comfortable with **React basics** (components, hooks, state)
@@ -89,12 +98,12 @@ API keys live only in `backend/.env` — never in frontend code.
 - ✅ **Phase 8** — Conditional / Router Node — yes/no branching, dynamic DAG pruning, skipped node status on canvas, AI Planner aware of Router nodes
 - ✅ **Phase 9** — Parallel Execution — wave-based topo sort, Promise.allSettled per wave, concurrent SSE events, multiple nodes running simultaneously
 - ✅ **Phase 10** — Run History + Cost Tracker — run_usage SSE event, token counts from API response, Zustand history stack, cost per model per run, history sidebar
-- 🔲 **Phase 11** — Save / Load + Templates — export workflow to file, import from file, 3 built-in templates (blog writer, research report, code reviewer); also fix results screen to show all node outputs not just the final one ← **NEXT**
+- 🔲 **Phase 11** — Authentication + Save/Load + Templates — Neon Postgres, raw `pg` driver, `users` table, signup/login, bcrypt password hashing, JWT auth (Bearer token in `localStorage`); `workflows` table scoped per user, Save button, real "My Workflows" list; 3 built-in templates (blog writer, research report, code reviewer); also fix results screen to show all node outputs not just the final one. *(Originally two separate phases — Save/Load and Authentication — merged here since per-user saved workflows require real accounts; former Phase 15 retired.)* ← **NEXT**
 - 🔲 **Phase 12** — Variable Injection — `{{topic}}`, `{{tone}}` placeholders in prompts, pre-run input form, no editing nodes every time
 - 🔲 **Phase 13** — File Upload Node — drop in PDF/text file, content injected as output into downstream nodes
 - 🔲 **Phase 14** — Auto-Retry — failed node retries once automatically before marking as error; no silent total failures
-- 🔲 **Phase 15** — Authentication — sign up / log in, each user owns their saved workflows and run history
-- 🔲 **Phase 16** — Share via Link — encode workflow in a shareable URL; recipient can run it but not edit it
+- 🔲 **Phase 15** — Share via Link — encode workflow in a shareable URL; recipient can run it but not edit it
+- 🔲 **Phase 16** — Proper Login Flow + SSO — builds on Phase 11's basic email/password auth: Google (and optionally GitHub) sign-in via OAuth authorization-code + PKCE flow, `oauth_accounts` table linking a provider identity to a user (`users.password_hash` becomes nullable — an OAuth-only user has no password), backend redirect/callback routes, token exchange via a maintained library rather than fully raw. Also revisit signup UX (email verification, password reset) if still missing by then.
 
 **Deferred (revisit after user testing):**
 - Human-in-the-Loop — pause mid-run for user review (power feature; users need comfortable baseline first)
