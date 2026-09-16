@@ -3,16 +3,16 @@ import { streamExecuteWorkflow } from '../api/client'
 
 export function RunButton() {
   const {
-    nodes, edges, goal,
+    nodes, edges, goal, token,
     executing, setExecuting,
     setNodeStatus, appendNodeOutput,
     resetExecution,
   } = useWorkflowStore()
 
-  const canRun = nodes.length > 0 && !executing
+  const canRun = nodes.length > 0 && !executing && !!token
 
   async function handleRun() {
-    if (!canRun) return
+    if (!canRun || !token) return
 
     // Clear previous outputs and reset all nodes to idle
     resetExecution()
@@ -20,6 +20,7 @@ export function RunButton() {
 
     try {
       await streamExecuteWorkflow(
+        token,
         {
           nodes: nodes.map((n) => ({
             id:           n.id,
@@ -44,7 +45,8 @@ export function RunButton() {
           else if (event.type === 'node_done')    setNodeStatus(event.nodeId, 'done')
           else if (event.type === 'node_skipped') setNodeStatus(event.nodeId, 'skipped')
           else if (event.type === 'error') {
-            nodes.forEach((n) => setNodeStatus(n.id, 'error'))
+            if (event.nodeId) setNodeStatus(event.nodeId, 'error')
+            else nodes.forEach((n) => setNodeStatus(n.id, 'error'))
             console.error('Execution error:', event.message)
           }
         }

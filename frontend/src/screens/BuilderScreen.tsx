@@ -24,7 +24,7 @@ const STATUS_CFG = {
 
 export function BuilderScreen() {
   const {
-    nodes, edges, goal, screen, executing, selectedNodeId,
+    nodes, edges, goal, token, screen, executing, selectedNodeId,
     sidebarMessages, currentWorkflowName,
     resetExecution, setExecuting, setScreen, setRunTiming,
     setNodeStatus, appendNodeOutput,
@@ -40,7 +40,7 @@ export function BuilderScreen() {
     }
   })
 
-  const canRun    = nodes.length > 0 && !executing
+  const canRun    = nodes.length > 0 && !executing && !!token
   const isRunning = screen === 'running'
 
   // Only nodes that have left idle state — shown in Live Output
@@ -51,7 +51,7 @@ export function BuilderScreen() {
     : 'Custom Workflow')
 
   async function handleRun() {
-    if (!canRun) return
+    if (!canRun || !token) return
 
     resetExecution()
     setExecuting(true)
@@ -60,6 +60,7 @@ export function BuilderScreen() {
 
     try {
       await streamExecuteWorkflow(
+        token,
         {
           nodes: nodes.map((n) => ({
             id:           n.id,
@@ -84,7 +85,12 @@ export function BuilderScreen() {
           else if (event.type === 'node_skipped') setNodeStatus(event.nodeId, 'skipped')
           else if (event.type === 'run_usage')    recordNodeUsage({ nodeId: event.nodeId, label: event.nodeId, model: event.model, inputTokens: event.inputTokens, outputTokens: event.outputTokens, cost: event.cost })
           else if (event.type === 'done')         pushRunToHistory()
-          else if (event.type === 'error')        nodes.forEach((n) => setNodeStatus(n.id, 'error'))
+          // The executor now says which node failed, so only that one turns
+          // red. A node-less error still means the whole run died.
+          else if (event.type === 'error') {
+            if (event.nodeId) setNodeStatus(event.nodeId, 'error')
+            else nodes.forEach((n) => setNodeStatus(n.id, 'error'))
+          }
         }
       )
       setRunTiming(startTime, Date.now())

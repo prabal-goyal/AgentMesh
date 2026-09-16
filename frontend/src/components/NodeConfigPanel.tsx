@@ -12,7 +12,7 @@ const AVAILABLE_MODELS = [
 
 export function NodeConfigPanel() {
   const {
-    nodes, edges, selectedNodeId,
+    nodes, edges, selectedNodeId, token,
     goal: storeGoal,
     updateNodeData, deleteNode,
     setNodeStatus, appendNodeOutput,
@@ -37,7 +37,7 @@ export function NodeConfigPanel() {
 
   // ── Retry ────────────────────────────────────────────────────────────────
   async function handleRetry() {
-    if (!node || retrying) return
+    if (!node || retrying || !token) return
     setRetrying(true)
 
     updateNodeData(node.id, { output: undefined, status: 'idle' })
@@ -63,6 +63,7 @@ export function NodeConfigPanel() {
 
     try {
       await streamExecuteWorkflow(
+        token,
         {
           nodes: [{
             id:           node.id,

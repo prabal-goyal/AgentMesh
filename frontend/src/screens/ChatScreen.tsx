@@ -13,6 +13,7 @@ export function ChatScreen() {
   const [planData, setPlanData] = useState<Awaited<ReturnType<typeof generatePlan>> | null>(null)
 
   const goal                 = useWorkflowStore((s) => s.goal)
+  const token                = useWorkflowStore((s) => s.token)
   const setScreen            = useWorkflowStore((s) => s.setScreen)
   const setWorkflow          = useWorkflowStore((s) => s.setWorkflow)
   const addSidebarMessage    = useWorkflowStore((s) => s.addSidebarMessage)
@@ -23,7 +24,8 @@ export function ChatScreen() {
     let cancelled = false
     const timer = setTimeout(async () => {
       try {
-        const plan = await generatePlan(goal)
+        if (!token) throw new Error('You are signed out — sign in again to plan a workflow')
+        const plan = await generatePlan(token, goal)
         if (!cancelled) setPlanData(plan)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to generate plan')
@@ -32,7 +34,7 @@ export function ChatScreen() {
       }
     }, 500)
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [goal])
+  }, [goal, token])
 
   function handleBuild() {
     if (!planData) return
