@@ -1,0 +1,56 @@
+name: CI
+
+# Runs on every push and PR to master. The point of CI here is that "this repo
+# is tested" becomes a claim a reviewer can verify in ten seconds, rather than
+# something that only holds when someone remembers to run vitest locally.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No version pinned here on purpose — pnpm/action-setup reads the
+      # "packageManager" field in the root package.json, so CI and local stay
+      # on the same pnpm without two places to update.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter backend typecheck
+
+      # No secrets are configured for this job and none are needed: the suite
+      # covers pure logic only (graph scheduling, condition parsing, cost
+      # maths, request validation, quota counting) and makes no network call.
+      - name: Test
+        run: pnpm --filter backend test
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter frontend lint
+
+      # `build` is `tsc -b && vite build`, so this typechecks too.
+      - name: Build
+        run: pnpm --filter frontend build

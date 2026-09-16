@@ -10,18 +10,19 @@ export function PlannerInput() {
 
   // goal lives in the store so RunButton can read it without prop drilling
   const goal           = useWorkflowStore((state) => state.goal)
+  const token          = useWorkflowStore((state) => state.token)
   const setGoal        = useWorkflowStore((state) => state.setGoal)
   const setWorkflow    = useWorkflowStore((state) => state.setWorkflow)
   const resetExecution = useWorkflowStore((state) => state.resetExecution)
 
   async function handleGenerate() {
-    if (!goal.trim()) return
+    if (!goal.trim() || !token) return
 
     setLoading(true)
     setError(null)
 
     try {
-      const plan = await generatePlan(goal)
+      const plan = await generatePlan(token, goal)
 
       const nodes: WorkflowNode[] = plan.nodes.map((n, i) => ({
         id:   n.id,
