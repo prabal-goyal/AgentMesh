@@ -1,5 +1,5 @@
 {
-  "name": "ai-workflow-builder",
+  "name": "agentmesh",
   "private": true,
   "scripts": {
     "dev": "pnpm --parallel --filter frontend --filter backend dev"
