@@ -1,12 +1,44 @@
 import { useState } from 'react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useWorkflowStore } from '../store/workflowStore'
+import type { NodeStatus } from '../types/workflow'
 
 function formatCost(cost: number): string {
   if (cost === 0) return '$0.00'
   if (cost < 0.0001) return '<$0.0001'
   return `$${cost.toFixed(4)}`
+}
+
+// Shared by the final output and every step, so all outputs render identically
+const markdownComponents: Components = {
+  h1: ({ children }) => <h1 className="text-[22px] font-bold text-[#0f172a] mt-6 mb-3 first:mt-0">{children}</h1>,
+  h2: ({ children }) => <h2 className="text-[18px] font-bold text-[#0f172a] mt-5 mb-2">{children}</h2>,
+  h3: ({ children }) => <h3 className="text-[15px] font-semibold text-[#0f172a] mt-4 mb-1">{children}</h3>,
+  h4: ({ children }) => <h4 className="text-[14px] font-semibold text-[#334155] mt-3 mb-1">{children}</h4>,
+  p:  ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc list-outside pl-5 mb-3 space-y-1">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal list-outside pl-5 mb-3 space-y-1">{children}</ol>,
+  li: ({ children }) => <li className="leading-[1.7]">{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold text-[#0f172a]">{children}</strong>,
+  hr: () => <hr className="my-4 border-[#e2e8f0]" />,
+  table: ({ children }) => (
+    <div className="overflow-x-auto mb-4">
+      <table className="w-full text-[13px] border-collapse border border-[#e2e8f0] rounded">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => <th className="bg-[#f1f5f9] text-left px-3 py-2 font-semibold text-[#0f172a] border border-[#e2e8f0]">{children}</th>,
+  td: ({ children }) => <td className="px-3 py-2 border border-[#e2e8f0] text-[#374151]">{children}</td>,
+  code: ({ children }) => <code className="bg-[#f1f5f9] text-[#0f172a] px-1.5 py-0.5 rounded text-[13px] font-mono">{children}</code>,
+  pre: ({ children }) => <pre className="bg-[#0f172a] text-[#e2e8f0] p-4 rounded overflow-x-auto mb-3 text-[13px] font-mono leading-[1.6]">{children}</pre>,
+}
+
+const STATUS_STYLES: Record<NodeStatus, string> = {
+  done:    'text-green-700 bg-green-50 border-green-200',
+  error:   'text-red-700 bg-red-50 border-red-200',
+  skipped: 'text-[#64748b] bg-[#f1f5f9] border-[#e2e8f0]',
+  running: 'text-blue-700 bg-blue-50 border-blue-200',
+  idle:    'text-[#64748b] bg-[#f1f5f9] border-[#e2e8f0]',
 }
 
 export function ResultsScreen() {
@@ -22,7 +54,7 @@ export function ResultsScreen() {
   const totalInputTokens   = usageList.reduce((s, u) => s + u.inputTokens, 0)
   const totalOutputTokens  = usageList.reduce((s, u) => s + u.outputTokens, 0)
 
-  const [copied, setCopied] = useState(false)
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
 
   const elapsedSeconds =
     runStartTime && runEndTime
@@ -32,6 +64,7 @@ export function ResultsScreen() {
   const doneNodes    = nodes.filter((n) => n.data.status === 'done' && n.data.output)
   const skippedCount = nodes.filter((n) => n.data.status === 'skipped').length
   const totalDone    = nodes.filter((n) => n.data.status === 'done').length
+  const hasErrors    = nodes.some((n) => n.data.status === 'error')
 
   // The final output is the last completed node that produced text
   const finalNode   = doneNodes[doneNodes.length - 1]
@@ -39,9 +72,15 @@ export function ResultsScreen() {
 
   async function handleCopy() {
     if (!finalOutput) return
-    await navigator.clipboard.writeText(finalOutput)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    // The clipboard API rejects when permission is denied or the page isn't
+    // served over HTTPS; say so instead of failing silently
+    try {
+      await navigator.clipboard.writeText(finalOutput)
+      setCopyState('copied')
+    } catch {
+      setCopyState('failed')
+    }
+    setTimeout(() => setCopyState('idle'), 2000)
   }
 
   function handleNewWorkflow() {
@@ -78,10 +117,17 @@ export function ResultsScreen() {
         {/* ── Main output ── */}
         <div className="flex-1 overflow-y-auto p-8 border-r border-[#e2e8f0]">
           {/* Success badge */}
-          <div className="inline-flex items-center gap-2 rounded px-3 py-1.5 mb-5 text-[12px] font-semibold text-green-700 bg-green-50 border border-green-200">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            Completed{elapsedSeconds !== null ? ` in ${elapsedSeconds}s` : ' successfully'}
-          </div>
+          {hasErrors ? (
+            <div className="inline-flex items-center gap-2 rounded px-3 py-1.5 mb-5 text-[12px] font-semibold text-amber-700 bg-amber-50 border border-amber-200">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Completed with errors{elapsedSeconds !== null ? ` in ${elapsedSeconds}s` : ''}
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 rounded px-3 py-1.5 mb-5 text-[12px] font-semibold text-green-700 bg-green-50 border border-green-200">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              Completed{elapsedSeconds !== null ? ` in ${elapsedSeconds}s` : ' successfully'}
+            </div>
+          )}
 
           <h1 className="text-[22px] font-bold text-[#0f172a] mb-2 leading-[1.2]">
             {goal || 'Workflow Output'}
@@ -97,36 +143,49 @@ export function ResultsScreen() {
 
           <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded px-5 py-5 text-[14px] text-[#374151] leading-[1.8]">
             {finalOutput ? (
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  h1: ({ children }) => <h1 className="text-[22px] font-bold text-[#0f172a] mt-6 mb-3 first:mt-0">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-[18px] font-bold text-[#0f172a] mt-5 mb-2">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-[15px] font-semibold text-[#0f172a] mt-4 mb-1">{children}</h3>,
-                  h4: ({ children }) => <h4 className="text-[14px] font-semibold text-[#334155] mt-3 mb-1">{children}</h4>,
-                  p:  ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                  ul: ({ children }) => <ul className="list-disc list-outside pl-5 mb-3 space-y-1">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal list-outside pl-5 mb-3 space-y-1">{children}</ol>,
-                  li: ({ children }) => <li className="leading-[1.7]">{children}</li>,
-                  strong: ({ children }) => <strong className="font-semibold text-[#0f172a]">{children}</strong>,
-                  hr: () => <hr className="my-4 border-[#e2e8f0]" />,
-                  table: ({ children }) => (
-                    <div className="overflow-x-auto mb-4">
-                      <table className="w-full text-[13px] border-collapse border border-[#e2e8f0] rounded">{children}</table>
-                    </div>
-                  ),
-                  th: ({ children }) => <th className="bg-[#f1f5f9] text-left px-3 py-2 font-semibold text-[#0f172a] border border-[#e2e8f0]">{children}</th>,
-                  td: ({ children }) => <td className="px-3 py-2 border border-[#e2e8f0] text-[#374151]">{children}</td>,
-                  code: ({ children }) => <code className="bg-[#f1f5f9] text-[#0f172a] px-1.5 py-0.5 rounded text-[13px] font-mono">{children}</code>,
-                  pre: ({ children }) => <pre className="bg-[#0f172a] text-[#e2e8f0] p-4 rounded overflow-x-auto mb-3 text-[13px] font-mono leading-[1.6]">{children}</pre>,
-                }}
-              >
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                 {finalOutput}
               </ReactMarkdown>
             ) : (
               <span className="text-[#94a3b8] italic">No output generated.</span>
             )}
           </div>
+
+          {/* ── Steps: every node's output ── */}
+          {nodes.length > 0 && (
+            <div className="mt-8">
+              <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-[.07em] mb-3">
+                Steps
+              </div>
+              <div className="flex flex-col gap-2">
+                {nodes.map((node) => (
+                  // Native <details>/<summary> handles open/close, keyboard and
+                  // screen-reader support without any React state per row
+                  <details key={node.id} className="group border border-[#e2e8f0] rounded bg-white">
+                    <summary className="flex items-center gap-2 px-4 py-2.5 cursor-pointer text-[13px] list-none [&::-webkit-details-marker]:hidden hover:bg-[#f8fafc]">
+                      <span className="text-[#94a3b8] transition-transform group-open:rotate-90">▸</span>
+                      <span className="font-medium text-[#0f172a]">{node.data.label}</span>
+                      {node.data.model && (
+                        <span className="text-[12px] text-[#94a3b8]">· {node.data.model}</span>
+                      )}
+                      <span className={`ml-auto rounded border px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLES[node.data.status]}`}>
+                        {node.data.status}
+                      </span>
+                    </summary>
+                    <div className="border-t border-[#e2e8f0] px-5 py-4 text-[14px] text-[#374151] leading-[1.8]">
+                      {node.data.output ? (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          {node.data.output}
+                        </ReactMarkdown>
+                      ) : (
+                        <span className="text-[#94a3b8] italic">No output.</span>
+                      )}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Right sidebar ── */}
@@ -196,7 +255,7 @@ export function ResultsScreen() {
             onClick={handleCopy}
             disabled={!finalOutput}
             className="w-full py-2.5 rounded text-[13px] font-medium border border-[#e2e8f0] text-[#64748b] hover:border-[#94a3b8] hover:text-[#0f172a] disabled:opacity-40 transition-all bg-white">
-            {copied ? 'Copied!' : 'Copy Output'}
+            {copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy Output'}
           </button>
 
           <button

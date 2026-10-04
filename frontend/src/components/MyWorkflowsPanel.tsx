@@ -1,19 +1,15 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useWorkflowStore } from '../store/workflowStore'
+import { formatUpdatedAt } from '../lib/formatDate'
 
 interface MyWorkflowsPanelProps {
   onClose: () => void
 }
 
-function formatUpdatedAt(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-  })
-}
-
 export function MyWorkflowsPanel({ onClose }: MyWorkflowsPanelProps) {
   const savedWorkflows        = useWorkflowStore((s) => s.savedWorkflows)
   const savedWorkflowsLoading = useWorkflowStore((s) => s.savedWorkflowsLoading)
+  const savedWorkflowsError   = useWorkflowStore((s) => s.savedWorkflowsError)
   const refreshSavedWorkflows = useWorkflowStore((s) => s.refreshSavedWorkflows)
   const loadSavedWorkflow     = useWorkflowStore((s) => s.loadSavedWorkflow)
   const deleteSavedWorkflow   = useWorkflowStore((s) => s.deleteSavedWorkflow)
@@ -22,14 +18,26 @@ export function MyWorkflowsPanel({ onClose }: MyWorkflowsPanelProps) {
     refreshSavedWorkflows()
   }, [refreshSavedWorkflows])
 
+  const [actionError, setActionError] = useState<string | null>(null)
+
   async function handleOpen(id: string) {
-    await loadSavedWorkflow(id)
-    onClose()
+    setActionError(null)
+    try {
+      await loadSavedWorkflow(id)
+      onClose()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not open workflow')
+    }
   }
 
   async function handleDelete(id: string, name: string) {
     if (!window.confirm(`Delete "${name}"? This can't be undone.`)) return
-    await deleteSavedWorkflow(id)
+    setActionError(null)
+    try {
+      await deleteSavedWorkflow(id)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not delete workflow')
+    }
   }
 
   return (
@@ -46,9 +54,25 @@ export function MyWorkflowsPanel({ onClose }: MyWorkflowsPanelProps) {
           </button>
         </div>
 
+        {actionError && (
+          <p role="alert" className="mx-4 mt-3 px-3 py-2 rounded text-[12.5px] text-red-700 bg-red-50 border border-red-200">
+            {actionError}
+          </p>
+        )}
+
         <div className="flex-1 overflow-y-auto px-2 py-2">
           {savedWorkflowsLoading ? (
             <p className="text-[13px] text-[#94a3b8] text-center py-8">Loading…</p>
+          ) : savedWorkflowsError ? (
+            <div role="alert" className="text-center py-8">
+              <p className="text-[13px] text-red-700 mb-3">{savedWorkflowsError}</p>
+              <button
+                onClick={refreshSavedWorkflows}
+                className="px-3 py-1.5 rounded text-[12.5px] border border-[#e2e8f0] text-[#64748b] hover:border-[#94a3b8] hover:text-[#0f172a] transition-all"
+              >
+                Try again
+              </button>
+            </div>
           ) : savedWorkflows.length === 0 ? (
             <p className="text-[13px] text-[#94a3b8] text-center py-8">
               No saved workflows yet — build one and hit Save.

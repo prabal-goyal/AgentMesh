@@ -16,6 +16,7 @@ import {
   deleteWorkflow as apiDeleteWorkflow,
   type WorkflowSummary,
 } from '../api/workflows'
+import { setUnauthorizedHandler } from '../api/http'
 
 // Both token and user are written together as one JSON blob so a page reload
 // can restore "logged in as X" immediately, without an extra network call to
@@ -109,6 +110,8 @@ interface WorkflowState {
   // ── Saved workflows (Neon, scoped to the logged-in user) ──
   savedWorkflows: WorkflowSummary[]
   savedWorkflowsLoading: boolean
+  // Kept separate from an empty list so a failed load isn't shown as "no workflows yet"
+  savedWorkflowsError: string | null
 
   // ── Screen navigation ──
   screen: AppScreen
@@ -185,6 +188,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   savedWorkflows: [],
   savedWorkflowsLoading: false,
+  savedWorkflowsError: null,
 
   screen: 'home',
   sidebarMessages: [],
@@ -326,7 +330,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   logout: () => {
     localStorage.removeItem(AUTH_STORAGE_KEY)
-    set({ token: null, user: null })
+    // The list belongs to the user who just left; don't show it to whoever signs in next
+    set({ token: null, user: null, savedWorkflows: [], savedWorkflowsError: null })
   },
 
   clearAuthError: () => set({ authError: null }),
@@ -374,10 +379,15 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   refreshSavedWorkflows: async () => {
     const { token } = get()
     if (!token) return
-    set({ savedWorkflowsLoading: true })
+    set({ savedWorkflowsLoading: true, savedWorkflowsError: null })
     try {
       const savedWorkflows = await apiListWorkflows(token)
       set({ savedWorkflows })
+    } catch (err) {
+      // Never rethrows: callers fire this from effects and after a save, and a
+      // failed list refresh must not surface as an unhandled rejection or turn
+      // a successful save into an error
+      set({ savedWorkflowsError: err instanceof Error ? err.message : 'Could not load saved workflows' })
     } finally {
       set({ savedWorkflowsLoading: false })
     }
@@ -412,3 +422,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     await get().refreshSavedWorkflows()
   },
 }))
+
+// Any authenticated request that comes back 401 signs the user out, which
+// makes App render AuthScreen instead of showing the raw error
+setUnauthorizedHandler(() => useWorkflowStore.getState().logout())
