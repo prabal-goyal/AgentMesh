@@ -7,7 +7,9 @@ Phases 12–16. Deferred features wait until real users have tested the product.
 This file is the single source of truth for project status. `/pm` keeps it up to
 date. Mark a phase done only after the user has confirmed it works.
 
-Status legend: ✅ done · 🟡 in progress · 🔲 not started
+Status legend: ✅ done · 🟡 in progress · 🔲 not started · ❌ dropped
+
+**Last updated:** 2026-10-04
 
 ## Done
 
@@ -27,12 +29,21 @@ Status legend: ✅ done · 🟡 in progress · 🔲 not started
 
 ## Next
 
-- 🟡 **Phase 11** — Authentication + Save/Load + Templates
+- 🟡 **Phase 11** — Authentication + Save/Load + simple home screen
   - ✅ Neon Postgres, `users` table, signup/login, bcrypt, JWT (Bearer token in `localStorage`)
   - ✅ `workflows` table scoped per user, Save button, "My Workflows" list
-  - 🔲 3 built-in templates (blog writer, research report, code reviewer) — the
-    "Templates" / "Browse Templates" buttons on the home screen do nothing yet
-  - 🔲 Results screen shows every node's output, not just the final one
+  - ❌ Built-in templates — dropped (Oct 2026): a second way to start adds a choice to the
+    journey; the product keeps one path: describe a goal → review the steps → run
+  - 🟡 Simplify the home screen around that single journey — built, awaiting final user check:
+    dead and duplicate buttons removed (Docs, Templates, three Builder/Canvas buttons), one
+    primary action ("Plan the steps"), fill-only examples, last 5 saved workflows listed on the
+    page, "How it works" shown when nothing is saved, email removed from the header
+  - ✅ Plan-review screen: dead "Add a requirement" bar removed; button renamed "Use these steps"
+  - ✅ Results screen shows every node's output (collapsible steps) and an amber badge when a
+    node failed
+  - ✅ Session and error handling: an expired login returns to the sign-in screen; logging out
+    clears the previous user's saved list; failed loads, opens, deletes, runs, retries and
+    copies now show a message instead of failing silently
 
 ## Planned
 
@@ -53,9 +64,14 @@ Status legend: ✅ done · 🟡 in progress · 🔲 not started
 
 ## Open Issues
 
-- An expired or invalid login shows an error message instead of returning to the login screen.
 - `requireAuth` does not check that the user still exists in Postgres.
 - The run quota is in memory, so it resets on restart and counts per server instance.
 - Router nodes make no AI call, so they leave gaps in per-node run history.
   Decision needed: record them at cost 0, or keep the table about AI calls only?
 - `anthropic/claude-sonnet-4-6` prices in `MODEL_PRICING` have not been checked against OpenRouter.
+- Plan-review screen: "Adjust" just returns home — rename to "Edit request"? It also uses
+  developer words ("Proposed Workflow", "4 agents", model names under each step).
+- Unused code, not yet deleted: `RunButton.tsx`, `PlannerInput.tsx`, `Toolbar.tsx`, and
+  `getMe()` in `frontend/src/api/auth.ts`.
+- The results screen picks the "final" output from the last node in the node list, not the
+  last node to run. If a node is added mid-graph later, the wrong output is shown as final.

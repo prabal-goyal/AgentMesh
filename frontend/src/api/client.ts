@@ -1,3 +1,5 @@
+import { throwIfNotOk } from './http'
+
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 
 // /api/plan and /api/execute are auth-gated on the backend — they spend
@@ -28,10 +30,7 @@ export async function generatePlan(token: string, goal: string): Promise<{
     body: JSON.stringify({ goal }),
   })
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Unknown error' }))
-    throw new Error(err.error ?? `Server error ${res.status}`)
-  }
+  await throwIfNotOk(res)
 
   return res.json()
 }
@@ -66,10 +65,7 @@ export async function streamExecuteWorkflow(
   // Auth, quota and validation all reject before the SSE stream opens, so a
   // failure here is a normal JSON body — surface its message rather than a
   // bare status code.
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Unknown error' }))
-    throw new Error(err.error ?? `Server error ${res.status}`)
-  }
+  await throwIfNotOk(res)
   if (!res.body) throw new Error('Server returned an empty stream')
 
   const reader  = res.body.getReader()

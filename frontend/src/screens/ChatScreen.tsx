@@ -184,7 +184,7 @@ export function ChatScreen() {
                     <button
                       onClick={handleBuild}
                       className="flex-1 py-2.5 rounded text-[13px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] transition-colors">
-                      Build this workflow
+                      Use these steps
                     </button>
                     <button
                       onClick={() => setScreen('home')}
@@ -197,17 +197,6 @@ export function ChatScreen() {
             )}
           </div>
         </div>
-      </div>
-
-      {/* ── Chat input ── */}
-      <div className="border-t border-[#e2e8f0] px-6 py-4 flex gap-2.5 items-center bg-white">
-        <input
-          placeholder="Add a requirement or ask to change something…"
-          className="flex-1 bg-[#f8fafc] border border-[#e2e8f0] rounded px-4 py-2.5 text-[14px] text-[#0f172a] placeholder-[#94a3b8] outline-none focus:border-[#94a3b8] transition-colors"
-        />
-        <button className="w-9 h-9 rounded bg-[#0f172a] text-white flex items-center justify-center text-[14px] hover:bg-[#1e293b] transition-colors">
-          ↑
-        </button>
       </div>
     </div>
   )

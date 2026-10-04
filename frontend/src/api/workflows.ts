@@ -1,4 +1,5 @@
 import type { WorkflowNode, WorkflowEdge } from '../types/workflow'
+import { throwIfNotOk } from './http'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 
@@ -20,13 +21,6 @@ export interface WorkflowDetail extends WorkflowSummary {
 
 function authHeaders(token: string) {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-}
-
-async function throwIfNotOk(res: Response) {
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Unknown error' }))
-    throw new Error(err.error ?? `Server error ${res.status}`)
-  }
 }
 
 export async function saveWorkflow(token: string, name: string, graph: WorkflowGraph): Promise<WorkflowSummary> {

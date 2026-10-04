@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { useWorkflowStore }      from '../store/workflowStore'
 import { streamExecuteWorkflow } from '../api/client'
 import { Canvas }                from '../components/Canvas'
@@ -32,6 +32,10 @@ export function BuilderScreen() {
     addNode,
   } = useWorkflowStore()
 
+  // Why the last run failed as a whole (quota, validation, network). Per-node
+  // failures already show on the node itself.
+  const [runError, setRunError] = useState<string | null>(null)
+
   // Auto-scroll the live output panel to the bottom on every token
   const outputRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -54,6 +58,7 @@ export function BuilderScreen() {
     if (!canRun || !token) return
 
     resetExecution()
+    setRunError(null)
     setExecuting(true)
     setScreen('running')
     const startTime = Date.now()
@@ -95,8 +100,9 @@ export function BuilderScreen() {
       )
       setRunTiming(startTime, Date.now())
       setScreen('results')
-    } catch {
+    } catch (err) {
       nodes.forEach((n) => setNodeStatus(n.id, 'error'))
+      setRunError(err instanceof Error ? err.message : 'The run failed')
       setScreen('builder')
     } finally {
       setExecuting(false)
@@ -142,6 +148,20 @@ export function BuilderScreen() {
           Home
         </button>
       </div>
+
+      {runError && (
+        <div role="alert" className="flex items-center gap-3 px-4 py-2 text-[13px] text-red-700 bg-red-50 border-b border-red-200 flex-shrink-0">
+          <span className="font-semibold">Run failed:</span>
+          <span className="flex-1 min-w-0 truncate">{runError}</span>
+          <button
+            onClick={() => setRunError(null)}
+            className="text-red-700/70 hover:text-red-900 px-1"
+            aria-label="Dismiss error"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ════ Body ════ */}
       <div className="flex flex-1 overflow-hidden">

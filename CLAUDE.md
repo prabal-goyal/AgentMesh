@@ -13,6 +13,17 @@ Everything needed to work on the project lives in this repository:
 - `README.md` — setup, environment variables, commands, deployment
 - `.claude/commands/` — the `/pm` and `/pa` slash commands
 
+## Product Principles
+
+1. **One journey** — describe a goal → check the steps → run. Don't add a second way
+   in (templates, blank canvas on the home screen, shortcuts that skip a step). Every
+   extra choice on the main path is friction for a non-technical user.
+2. **No dead controls** — a button or input that does nothing is removed, not left as
+   a placeholder for a future feature.
+3. **Plain language in the UI** — no developer words (agents, nodes, canvas, workflow
+   graph, model IDs) where a user would describe it differently.
+4. **Never fail silently** — every failed action tells the user what happened.
+
 ## Project Boundary Rules
 
 These override everything else and apply to every session.

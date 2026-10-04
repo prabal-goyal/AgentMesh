@@ -21,7 +21,10 @@ export function NodeConfigPanel() {
   const node = nodes.find((n) => n.id === selectedNodeId)
 
   const [retrying, setRetrying] = useState(false)
-  const [copied,   setCopied]   = useState(false)
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  // Tagged with the node id because this panel is reused as the selection
+  // changes; an error from one node must not show up on another
+  const [retryError, setRetryError] = useState<{ nodeId: string; message: string } | null>(null)
 
   const outputRef = useRef<HTMLDivElement>(null)
 
@@ -39,6 +42,7 @@ export function NodeConfigPanel() {
   async function handleRetry() {
     if (!node || retrying || !token) return
     setRetrying(true)
+    setRetryError(null)
 
     updateNodeData(node.id, { output: undefined, status: 'idle' })
 
@@ -79,11 +83,15 @@ export function NodeConfigPanel() {
         (event) => {
           if      (event.type === 'node_token') appendNodeOutput(event.nodeId, event.token)
           else if (event.type === 'node_done')  setNodeStatus(event.nodeId, 'done')
-          else if (event.type === 'error')      setNodeStatus(node.id, 'error')
+          else if (event.type === 'error') {
+            setNodeStatus(node.id, 'error')
+            setRetryError({ nodeId: node.id, message: event.message })
+          }
         }
       )
-    } catch {
+    } catch (err) {
       setNodeStatus(node.id, 'error')
+      setRetryError({ nodeId: node.id, message: err instanceof Error ? err.message : 'Retry failed' })
     } finally {
       setRetrying(false)
     }
@@ -92,9 +100,15 @@ export function NodeConfigPanel() {
   // ── Copy ─────────────────────────────────────────────────────────────────
   async function handleCopy() {
     if (!data.output) return
-    await navigator.clipboard.writeText(data.output)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    // The clipboard API rejects when permission is denied or the page isn't
+    // served over HTTPS; say so instead of failing silently
+    try {
+      await navigator.clipboard.writeText(data.output)
+      setCopyState('copied')
+    } catch {
+      setCopyState('failed')
+    }
+    setTimeout(() => setCopyState('idle'), 2000)
   }
 
   const hasOutput = data.output !== undefined && data.output !== ''
@@ -188,6 +202,9 @@ export function NodeConfigPanel() {
             {retrying ? 'Retrying…' : 'Retry Node'}
           </button>
         )}
+        {retryError && retryError.nodeId === node.id && (
+          <p role="alert" className="text-[12px] text-red-700">{retryError.message}</p>
+        )}
 
         {/* Output */}
         {(hasOutput || isRunning) && (
@@ -198,7 +215,7 @@ export function NodeConfigPanel() {
                 <button
                   onClick={handleCopy}
                   className="text-[12px] text-[#94a3b8] hover:text-[#64748b] transition-colors">
-                  {copied ? 'Copied' : 'Copy'}
+                  {copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy'}
                 </button>
               )}
             </div>
