@@ -9,3 +9,6 @@ dist/
 mockups/
 video/
 shared/
+
+# Local AI-assistant instructions (kept on the developer machine, not published)
+CLAUDE.md
